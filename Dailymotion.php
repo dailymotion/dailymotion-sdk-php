@@ -10,11 +10,10 @@ class Dailymotion
     const VERSION = '0.1';
 
     /**
-     * This is the default grant type. An authorization is requested to the end-user by redirecting it to
-     * an authorization page hosted on Dailymotion. Once authorized, a refresh token is requested by
-     * the API client to the token server and stored in the end-user's cookie (or other storage technique
-     * implemented by subclasses). The refresh token is then used to request time limited access token
-     * to the token server.
+     * An authorization is requested to the end-user by redirecting it to an authorization page hosted
+     * on Dailymotion. Once authorized, a refresh token is requested by the API client to the token
+     * server and stored in the end-user's cookie (or other storage technique implemented by subclasses).
+     * The refresh token is then used to request time limited access token to the token server.
      */
     const GRANT_TYPE_TOKEN = 0;
 
@@ -77,36 +76,25 @@ class Dailymotion
     public $cookieLifeTime = 31536000; // 1 year
 
     protected
-        $apiKey = null,
-        $apiSecret = null,
         $grantType = null,
         $grantInfo = null,
         $session = null,
         $storeSession = true;
 
     /**
-     * Initialize a Dailymotion API Client.
-     * To create an API key/secret pair, go to: http://www.dailymotion.com/profile/developer
-     *
-     * @param $apiKey String the API key
-     * @param $apiSecret String the API secret
-     */
-    public function __construct($apiKey, $apiSecret)
-    {
-        $this->apiKey = $apiKey;
-        $this->apiSecret = $apiSecret;
-    }
-
-    /**
      * Change the default grant type.
+     *
+     * To create an API key/secret pair, go to: http://www.dailymotion.com/profile/developer
      *
      * @param $type Integer can be one of Dailymotion::GRANT_TYPE_TOKEN, Dailymotion::GRANT_TYPE_NONE
      *                      or Dailymotion::GRANT_TYPE_PASSWORD.
+     * @param $apiKey the API key
+     * @param $apiSecret the API secret
+     * @param $scope mixed the permission scope requested (can be none or any of 'read', 'write', 'delete').
+     *                     To requested several scope keys, use an array or separate keys by whitespaces.
      * @param $info Array info associated to the chosen grant type
      *
      * Info Keys:
-     * - scope: the permission scope requested (can none or any of 'create', 'read', 'update', 'delete').
-     *          To requested several scope keys, use an array or separate keys by whitespaces.
      * - redirect_uri: if $type is Dailymotion::GRANT_TYPE_TOKEN, this key can be provided. If omited,
      *                 the current URL will be used. Make sure this value have to stay the same before
      *                 the user is redirect to the authorization page and after the authorization page
@@ -116,8 +104,15 @@ class Dailymotion
      *
      * @throws InvalidArgumentException if grant type is not supported or grant info is missing with required
      */
-    public function setGrantType($type, Array $info = null)
+    public function setGrantType($type, $apiKey, $apiSecret, Array $scope = null, Array $info = null)
     {
+        if ($type === null)
+        {
+            $this->grantType = null;
+            $this->grantInfo = null;
+            return;
+        }
+
         switch ($type)
         {
             case self::GRANT_TYPE_TOKEN:
@@ -138,11 +133,23 @@ class Dailymotion
                 throw new InvalidArgumentException('Invalid grant type: ' . $type);
         }
 
-        $this->grantType = $type;
-        if (isset($info['scope']) && is_array($info['scope']))
+        if (!isset($info))
         {
-            $info['scope'] = implode(' ', $info['scope']);
+            $info = array();
         }
+
+        if (!isset($apiKey) || !isset($apiSecret))
+        {
+            throw new InvalidArgumentException('Missing API key/secret');
+        }
+
+        $this->grantType = $type;
+        if (isset($scope))
+        {
+            $info['scope'] = is_array($scope) ? implode(' ', $scope) : $scope;
+        }
+        $info['key'] = $apiKey;
+        $info['secret'] = $apiSecret;
         $this->grantInfo = $info;
     }
 
@@ -163,7 +170,7 @@ class Dailymotion
         return $this->oauthAuthorizeEndpointUrl . '?' . http_build_query(array
         (
             'response_type' => 'code',
-            'client_id' => $this->apiKey,
+            'client_id' => $this->grantInfo['key'],
             'redirect_uri' => $this->grantInfo['redirect_uri'],
             'scope' => is_array($scope) ? implode(' ', $scope) : $scope,
             'display' => $display,
@@ -222,7 +229,14 @@ class Dailymotion
         {
             $message = isset($result['error']['message']) ? $result['error']['message'] : null;
             $code = isset($result['error']['code']) ? $result['error']['code'] : null;
-            throw new DailymotionApiException($message, $code);
+            if ($code === 403)
+            {
+                throw new DailymotionAuthRequiredException($message, $code);
+            }
+            else
+            {
+                throw new DailymotionApiException($message, $code);
+            }
         }
         elseif (!isset($result['result']))
         {
@@ -239,7 +253,7 @@ class Dailymotion
      *
      * @param Boolean $forceRefresh to force the refresh of the access token, event if not expired
      *
-     * @return String access token
+     * @return String access token or NULL if not grant type defined (un-authen API calls)
      *
      * @throws DailymotionAuthRequiredException can't get access token, client need to request end-user authorization
      * @throws DailymotionAuthRefusedException the user refused the authorization
@@ -247,6 +261,12 @@ class Dailymotion
      */
     protected function getAccessToken($forceRefresh = false)
     {
+        if ($this->grantType === null)
+        {
+            // No grant type defined, the request won't be authenticated
+            return null;
+        }
+
         $session = $this->getSession();
 
         if (isset($session))
@@ -266,8 +286,8 @@ class Dailymotion
                 $session = $this->oauthTokenRequest(array
                 (
                     'grant_type' => 'refresh_token',
-                    'client_id' => $this->apiKey,
-                    'client_secret' => $this->apiSecret,
+                    'client_id' => $this->grantInfo['key'],
+                    'client_secret' => $this->grantInfo['secret'],
                     'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
                     'refresh_token' => $session['refresh_token'],
                 ));
@@ -279,12 +299,7 @@ class Dailymotion
         try
         {
             // No refresh token available or refresh failed
-            if ($this->grantType === null)
-            {
-                // No grant type defined, ask client to do something
-                throw new DailymotionAuthRequiredException();
-            }
-            elseif ($this->grantType === self::GRANT_TYPE_TOKEN)
+            if ($this->grantType === self::GRANT_TYPE_TOKEN)
             {
                 if (isset($_GET['code']))
                 {
@@ -292,8 +307,8 @@ class Dailymotion
                     $session = $this->oauthTokenRequest(array
                     (
                         'grant_type' => 'authorization_code',
-                        'client_id' => $this->apiKey,
-                        'client_secret' => $this->apiSecret,
+                        'client_id' => $this->grantInfo['key'],
+                        'client_secret' => $this->grantInfo['secret'],
                         'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
                         'code' => $_GET['code'],
                         'redirect_uri' => $this->grantInfo['redirect_uri'],
@@ -326,8 +341,8 @@ class Dailymotion
                 $session = $this->oauthTokenRequest(array
                 (
                     'grant_type' => 'none',
-                    'client_id' => $this->apiKey,
-                    'client_secret' => $this->apiSecret,
+                    'client_id' => $this->grantInfo['key'],
+                    'client_secret' => $this->grantInfo['secret'],
                     'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
                 ));
                 $this->setSession($session);
@@ -338,8 +353,8 @@ class Dailymotion
                 $session = $this->oauthTokenRequest(array
                 (
                     'grant_type' => 'password',
-                    'client_id' => $this->apiKey,
-                    'client_secret' => $this->apiSecret,
+                    'client_id' => $this->grantInfo['key'],
+                    'client_secret' => $this->grantInfo['secret'],
                     'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
                     'username' => $this->grantInfo['username'],
                     'password' => $this->grantInfo['password'],
@@ -394,7 +409,7 @@ class Dailymotion
      */
     protected function readSession()
     {
-        $cookieName = 'dms_' . $this->apiKey;
+        $cookieName = 'dms_' . $this->grantInfo['key'];
         if (isset($_COOKIE[$cookieName]))
         {
             parse_str(trim(get_magic_quotes_gpc() ? stripslashes($_COOKIE[$cookieName]): $_COOKIE[$cookieName], '"'), $session);
@@ -420,7 +435,7 @@ class Dailymotion
             return;
         }
 
-        $cookieName = 'dms_' . $this->apiKey;
+        $cookieName = 'dms_' . $this->grantInfo['key'];
         if (isset($session))
         {
             $value = '"' . http_build_query($session, null, '&') . '"';
@@ -484,9 +499,9 @@ class Dailymotion
      * Perform an OAuth 2.0 (draft 10) auethentified request.
      *
      * @param String $url the URL to perform the HTTP request to.
-     * @param Array list of headers to send with the request (format array('Header-Name: header value')).
-     * @param String oauth access token to authenticate the request with.
      * @param String $payload the encoded method request to POST.
+     * @param String oauth access token to authenticate the request with.
+     * @param Array list of headers to send with the request (format array('Header-Name: header value')).
      * @param Integer $status_code an reference variable to store the response status code in.
      * @param Array a reference variable to store the response headers.
      *
@@ -529,10 +544,10 @@ class Dailymotion
      * Override this method if you don't want to use curl.
      *
      * @param String $url the URL to perform the HTTP request to.
-     * @param Array list of headers to send with the request (format array('Header-Name: header value'))
      * @param mixed $payload the data to POST. If it's an associative array, it will be urlencoded and the
      *              Content-Type header will automatically set to multipart/form-data. If it's a string
      *              make sure you set the correct Content-Type.
+     * @param Array $headers list of headers to send with the request (format array('Header-Name: header value'))
      * @param Integer $status_code an reference variable to store the response status code in
      * @param Array a reference variable to store the response headers
      *

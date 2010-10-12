@@ -28,12 +28,17 @@ require_once 'Dailymotion.php';
 
 class DailymotionTest extends PHPUnit_Framework_TestCase
 {
-    protected $api;
+    protected
+        $api = null,
+        $apiKey = null,
+        $apiSecret = null;
 
     protected function setUp()
     {
         global $apiKey, $apiSecret, $apiEndpointUrl, $oauthAuthorizeEndpointUrl, $oauthTokenEndpointUrl;
-        $this->api = new Dailymotion($apiKey, $apiSecret);
+        $this->apiKey = $apiKey;
+        $this->apiSecret = $apiSecret;
+        $this->api = new Dailymotion();
         if (isset($apiEndpointUrl))
         {
             $this->api->apiEndpointUrl = $apiEndpointUrl;
@@ -48,17 +53,22 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         }
     }
 
-    /**
-     * @expectedException DailymotionAuthRequiredException
-     */
-    public function testNoGrantType()
+    public function testNoGrantTypePublicData()
     {
         $result = $this->api->call('test.echo', array('message' => 'test'));
     }
 
+    /**
+     * @expectedException DailymotionAuthRequiredException
+     */
+    public function testNoGrantTypeAuthRequired()
+    {
+        $result = $this->api->call('auth.info');
+    }
+
     public function testGrantTypeNone()
     {
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE);
+        $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret);
         $result = $this->api->call('test.echo', array('message' => 'test'));
         $this->assertType('array', $result);
         $this->assertArrayHasKey('message', $result);
@@ -68,7 +78,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
     public function testGrantTypePassword()
     {
         global $testUser, $testPassword;
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, array('username' => $testUser, 'password' => $testPassword));
+        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret, null, array('username' => $testUser, 'password' => $testPassword));
         $result = $this->api->call('test.echo', array('message' => 'test'));
         $this->assertType('array', $result);
         $this->assertArrayHasKey('message', $result);
@@ -80,7 +90,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException DailymotionAuthRequiredException
+     * @expectedException DailymotionApiException
      */
     public function testError()
     {

@@ -12,16 +12,16 @@ three granting methods of OAuth 2.0 for different kind of usages.
 
 ### Token Grant Type
 
-This mode is the mode you should use in most case. In this mode you redirect the user to an
-authorization page on Dailymotion, and you script is called back once the end-user authorized you API
+This mode is the mode you should use in most cases. In this mode you redirect the user to an
+authorization page on Dailymotion, and you script is called back once the end-user authorized your API
 key to access the Dailymotion service on its behalf.
 
 Here is a usage example:
 
     <?php
 
-    $api = new Dailymotion($apiKey, $apiSecret);
-    $api->setGrantType(Dailymotion::GRANT_TYPE_TOKEN)
+    $api = new Dailymotion();
+    $api->setGrantType(Dailymotion::GRANT_TYPE_TOKEN, $apiKey, $apiSecret)
 
     try
     {
@@ -35,7 +35,7 @@ Here is a usage example:
     }
     catch (DailymotionAuthRefusedException $e)
     {
-        // handle case when user refused to authorize
+        // Handle case when user refused to authorize
         // <YOUR CODE>
     }
 
@@ -47,22 +47,19 @@ responsibility to ask the user for its credentials. Make sure you API secret rem
 
     <?php
 
-    $api = new Dailymotion($apiKey, $apiSecret);
+    $api = new Dailymotion();
 
-    if (isset($_POST['username']) && isset($_POST['password']))
+    if (!isset($_POST['username']) || !isset($_POST['password']))
     {
-        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD,
-                           array('username' => $_POST['username'], 'password' => $_POST['password']));
-    }
-
-    try
-    {
-        $result = $api->call($method, $arguments);
-    }
-    catch (DailymotionAuthRequiredException $e)
-    {
-        // show username/password prompt
+        // Ask end-user's credentials
         // <YOUR CODE>
+    }
+    else
+    {
+        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $apiKey, $apiSecret, null,
+                           array('username' => $_POST['username'], 'password' => $_POST['password']));
+
+        $result = $api->call($method, $arguments);
     }
 
 
@@ -74,8 +71,8 @@ access to public data or private date of the user owning the API key.
 
     <?php
 
-    $api = new Dailymotion($apiKey, $apiSecret);
-    $api->setGrantType(Dailymotion::GRANT_TYPE_NONE);
+    $api = new Dailymotion();
+    $api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $apiKey, $apiSecret);
     $result = $api->call($method, $arguments);
 
 Feedback
