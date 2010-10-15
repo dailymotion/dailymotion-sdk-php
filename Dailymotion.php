@@ -178,6 +178,23 @@ class Dailymotion
     }
 
     /**
+     * Upload a file on the Dailymotion servers and generate an URL to be used with API methods.
+     *
+     * @param $filePath String a path to the file to upload
+     *
+     * @return String the resulting URL
+     */
+    public function uploadFile($filePath)
+    {
+        $result = $this->call('file.upload');
+        $timeout = $this->timeout;
+        $this->timeout = null;
+        $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
+        $this->timeout = $timeout;
+        return $result['url'];
+    }
+
+    /**
      * Call a remote method.
      *
      * @param $method String the method name to call.
@@ -582,7 +599,7 @@ class Dailymotion
         $response = curl_exec($ch);
         if ($response === false)
         {
-            $e = new DailymotionTransportException(curl_error($ch), curl_error($ch));
+            $e = new DailymotionTransportException(curl_error($ch), curl_errno($ch));
             curl_close($ch);
             throw $e;
         }

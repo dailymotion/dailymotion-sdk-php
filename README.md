@@ -7,10 +7,12 @@ API from your website.
 Usage
 -----
 
+### Authentication
+
 The Dailymotion API requires OAuth 2.0 authentication in order to be used. This library implements
 three granting methods of OAuth 2.0 for different kind of usages.
 
-### Token Grant Type
+#### Token Grant Type
 
 This mode is the mode you should use in most cases. In this mode you redirect the user to an
 authorization page on Dailymotion, and you script is called back once the end-user authorized your API
@@ -39,7 +41,7 @@ Here is a usage example:
         // <YOUR CODE>
     }
 
-### Password Grant Type
+#### Password Grant Type
 
 If you PHP application isn't a web application and cannot redirect the user to the Dailymotion
 authorization page, the password grant type can be used. With this grant type you have the
@@ -63,7 +65,7 @@ responsibility to ask the user for its credentials. Make sure you API secret rem
     }
 
 
-### None Grant Type
+#### None Grant Type
 
 If you don't need to access the Dailymotion API on behalf of a user because, for instance, you plan to
 only access public data, you can use the NONE grant type. With this grant type, you will only have
@@ -74,6 +76,16 @@ access to public data or private date of the user owning the API key.
     $api = new Dailymotion();
     $api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $apiKey, $apiSecret);
     $result = $api->call($method, $arguments);
+
+### File Upload
+
+Certain methods like `video.upload` requires a URL to a file. To create those URLs, the `uploadFile:delegate:` method have to be used like this:
+
+    $url = $api->uploadFile($filePath);
+
+You can then use this URL as an argument to methods requiring such parameter. For instance to create a video:
+
+    $result = $api->call('video.create', array('url' => $url));
 
 Feedback
 --------

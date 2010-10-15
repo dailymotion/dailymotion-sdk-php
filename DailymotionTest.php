@@ -4,6 +4,8 @@ $apiKey = null;
 $apiSecret = null;
 $testUser = null;
 $testPassword = null;
+$testVideoFile = null;
+$proxy = null;
 $apiEndpointUrl = null;
 $oauthAuthorizeEndpointUrl = null;
 $oauthTokenEndpointUrl = null;
@@ -35,10 +37,14 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
 
     protected function setUp()
     {
-        global $apiKey, $apiSecret, $apiEndpointUrl, $oauthAuthorizeEndpointUrl, $oauthTokenEndpointUrl;
+        global $apiKey, $apiSecret, $proxy, $apiEndpointUrl, $oauthAuthorizeEndpointUrl, $oauthTokenEndpointUrl;
         $this->apiKey = $apiKey;
         $this->apiSecret = $apiSecret;
         $this->api = new Dailymotion();
+        if (isset($proxy))
+        {
+            $this->api->proxy = $proxy;
+        }
         if (isset($apiEndpointUrl))
         {
             $this->api->apiEndpointUrl = $apiEndpointUrl;
@@ -95,6 +101,15 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
     public function testError()
     {
         $this->api->call('test.echo');
+    }
+
+    public function testUploadFile()
+    {
+        global $testVideoFile;
+        $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret);
+        $url = $this->api->uploadFile($testVideoFile);
+        $this->assertType('string', $url);
+        $this->assertContains('http://', $url);
     }
 }
 
