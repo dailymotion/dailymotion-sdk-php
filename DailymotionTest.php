@@ -75,20 +75,18 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
     public function testGrantTypeNone()
     {
         $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret);
-        $result = $this->api->call('test.echo', array('message' => 'test'));
+        $result = $this->api->call('auth.info');
         $this->assertType('array', $result);
-        $this->assertArrayHasKey('message', $result);
-        $this->assertEquals('test', $result['message']);
+        $this->assertArrayHasKey('username', $result);
     }
 
     public function testGrantTypePassword()
     {
         global $testUser, $testPassword;
         $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret, null, array('username' => $testUser, 'password' => $testPassword));
-        $result = $this->api->call('test.echo', array('message' => 'test'));
+        $result = $this->api->call('auth.info');
         $this->assertType('array', $result);
-        $this->assertArrayHasKey('message', $result);
-        $this->assertEquals('test', $result['message']);
+        $this->assertArrayHasKey('username', $result);
     }
 
     public function testGrantTypeToken()
