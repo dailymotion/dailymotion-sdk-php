@@ -7,7 +7,7 @@
  */
 class Dailymotion
 {
-    const VERSION = '0.1';
+    const VERSION = '1.0';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -542,7 +542,7 @@ class Dailymotion
             case 403: // Insufficient scope
                 $error = null;
                 $message = null;
-                if (preg_match('/error="(.*?)"(?: error_description="(.*?)")?/', $response_headers['www-authenticate'], $match))
+                if (preg_match('/error="(.*?)"(?:, error_description="(.*?)")?/', $response_headers['www-authenticate'], $match))
                 {
                     $error = $match[1];
                     $message = $match[2];
@@ -608,13 +608,14 @@ class Dailymotion
         $info = curl_getinfo($ch);
         curl_close($ch);
 
-        $response_headers = array();
+        $headers = array();
         $headers_str = substr($response, 0, $info['header_size']);
         strtok($headers_str, "\r\n"); // skip status code
         while(($name = trim(strtok(":"))) && ($value = trim(strtok("\r\n"))))
         {
             $headers[strtolower($name)] = (isset($headers[$name]) ? $headers[$name] . '; ' : '') . $value;
         }
+        $response_headers = $headers;
 
         if ($this->debug)
         {
