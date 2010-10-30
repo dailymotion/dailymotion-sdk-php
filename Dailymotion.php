@@ -264,6 +264,15 @@ class Dailymotion
     }
 
     /**
+     * Remove the right for the current API key to access the current user account.
+     */
+    public function logout()
+    {
+        $this->call('auth.logout');
+        $this->setSession(null);
+    }
+
+    /**
      * Get the access token. If not access token is available, try to obtain one using refresh token
      * or code (depending on the state of the OAuth transaction). If no access token is available
      * and no refresh token or code can be found, an exception is thrown.
