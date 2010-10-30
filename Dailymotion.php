@@ -43,7 +43,7 @@ class Dailymotion
     /**
      * Maximum number of secondes allowed to wait for connection establishment of HTTP requests
      */
-    public $connectionTimout = 2;
+    public $connectionTimeout = 2;
 
     /**
      * An HTTP proxy to tunnel requests through (format: hostname[:port])
@@ -583,7 +583,7 @@ class Dailymotion
         (
             $ch, array
             (
-                CURLOPT_CONNECTTIMEOUT => $this->connectionTimout,
+                CURLOPT_CONNECTTIMEOUT => $this->connectionTimeout,
                 CURLOPT_TIMEOUT => $this->timeout,
                 CURLOPT_PROXY => $this->proxy,
                 CURLOPT_USERAGENT => sprintf('Dailymotion-PHP/%s (PHP %s; %s)', self::VERSION, PHP_VERSION, php_sapi_name()),
