@@ -205,7 +205,7 @@ class Dailymotion
      * @throws DailymotionApiException if API return an error
      * @throws DailymotionAuthException if can't authenticate the request
      * @throws DailymotionAuthRequiredException if not authentication info is available
-     * @throws DailymotionTransportException if an error occures during request.
+     * @throws DailymotionTransportException if an error occurs during request.
      */
     public function call($method, $args = array())
     {
@@ -283,7 +283,7 @@ class Dailymotion
      *
      * @throws DailymotionAuthRequiredException can't get access token, client need to request end-user authorization
      * @throws DailymotionAuthRefusedException the user refused the authorization
-     * @throws DailymotionAuthException an oauth error occured
+     * @throws DailymotionAuthException an oauth error occurred
      */
     protected function getAccessToken($forceRefresh = false)
     {
@@ -522,7 +522,7 @@ class Dailymotion
     }
 
     /**
-     * Perform an OAuth 2.0 (draft 10) auethentified request.
+     * Perform an OAuth 2.0 (draft 10) authenticated request.
      *
      * @param String $url the URL to perform the HTTP request to.
      * @param String $payload the encoded method request to POST.
@@ -533,8 +533,8 @@ class Dailymotion
      *
      * @return String the response body
      *
-     * @throws DailymotionAuthException if an oauth error occures
-     * @throws DailymotionTransportException if an error occures during request.
+     * @throws DailymotionAuthException if an oauth error occurs
+     * @throws DailymotionTransportException if an error occurs during request.
      */
     protected function oauthRequest($url, $payload, $accessToken = null, $headers = array(), &$status_code = null, &$response_headers = null)
     {
@@ -579,7 +579,7 @@ class Dailymotion
      *
      * @return String the response body
      *
-     * @throws DailymotionTransportException if an error occures during request.
+     * @throws DailymotionTransportException if an error occurs during request.
      */
     protected function httpRequest($url, $payload, $headers = null, &$status_code = null, &$response_headers = null)
     {
