@@ -12,7 +12,7 @@ Usage
 The Dailymotion API requires OAuth 2.0 authentication in order to be used. This library implements
 three granting methods of OAuth 2.0 for different kind of usages.
 
-#### Token Grant Type
+#### Authorization Grant Type
 
 This mode is the mode you should use in most cases. In this mode you redirect the user to an
 authorization page on Dailymotion, and you script is called back once the end-user authorized your API
@@ -23,7 +23,7 @@ Here is a usage example:
     <?php
 
     $api = new Dailymotion();
-    $api->setGrantType(Dailymotion::GRANT_TYPE_TOKEN, $apiKey, $apiSecret)
+    $api->setGrantType(Dailymotion::GRANT_TYPE_AUTHORIZATION, $apiKey, $apiSecret)
 
     try
     {
