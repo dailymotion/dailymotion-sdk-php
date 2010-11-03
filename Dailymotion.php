@@ -7,7 +7,7 @@
  */
 class Dailymotion
 {
-    const VERSION = '1.0';
+    const VERSION = '1.1';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -15,20 +15,21 @@ class Dailymotion
      * server and stored in the end-user's cookie (or other storage technique implemented by subclasses).
      * The refresh token is then used to request time limited access token to the token server.
      */
-    const GRANT_TYPE_TOKEN = 0;
+    const GRANT_TYPE_AUTHORIZATION = 1;
+    const GRANT_TYPE_TOKEN = 1; // deprecated name
 
     /**
      * This grant type is a 2 legs authentication: it doesn't allow to act on behalf of another user.
      * With this grant type, all API requests will be performed with the user identity of the API key owner.
      */
-    const GRANT_TYPE_NONE = 1;
+    const GRANT_TYPE_NONE = 2;
 
     /**
      * This grant type allows to authenticate end-user by directly providing its credentials.
      * This profile is highly discouraged for web-server workflows. If used, the username and password
      * MUST NOT be stored by the client.
      */
-    const GRANT_TYPE_PASSWORD = 2;
+    const GRANT_TYPE_PASSWORD = 3;
 
     /**
      * Activate debug output
@@ -86,7 +87,7 @@ class Dailymotion
      *
      * To create an API key/secret pair, go to: http://www.dailymotion.com/profile/developer
      *
-     * @param $type Integer can be one of Dailymotion::GRANT_TYPE_TOKEN, Dailymotion::GRANT_TYPE_NONE
+     * @param $type Integer can be one of Dailymotion::GRANT_TYPE_AUTHORIZATION, Dailymotion::GRANT_TYPE_NONE
      *                      or Dailymotion::GRANT_TYPE_PASSWORD.
      * @param $apiKey the API key
      * @param $apiSecret the API secret
@@ -95,12 +96,14 @@ class Dailymotion
      * @param $info Array info associated to the chosen grant type
      *
      * Info Keys:
-     * - redirect_uri: if $type is Dailymotion::GRANT_TYPE_TOKEN, this key can be provided. If omited,
+     * - redirect_uri: if $type is Dailymotion::GRANT_TYPE_AUTHORIZATION, this key can be provided. If omited,
      *                 the current URL will be used. Make sure this value have to stay the same before
      *                 the user is redirect to the authorization page and after the authorization page
      *                 redirected to this provided URI (the token server will change this).
      * - username:
-     * - password: if $type is Dailymotion::GRANT_TYPE_PASSWORD, those argument are required.
+     * - password: if $type is Dailymotion::GRANT_TYPE_PASSWORD, are used to define end-user credentials.
+     *             If those argument as not provided, the DailymotionAuthRequiredException exception will
+     *             be thrown if no valid session is available.
      *
      * @throws InvalidArgumentException if grant type is not supported or grant info is missing with required
      */
@@ -115,19 +118,14 @@ class Dailymotion
 
         switch ($type)
         {
-            case self::GRANT_TYPE_TOKEN:
+            case self::GRANT_TYPE_AUTHORIZATION:
                 if (!isset($info['redirect_uri']))
                 {
                     $info['redirect_uri'] = $this->getCurrentUrl();
                 }
                 break;
             case self::GRANT_TYPE_NONE:
-                break;
             case self::GRANT_TYPE_PASSWORD:
-                if (!is_array($info) || !isset($info['username']) || !isset($info['password']))
-                {
-                    throw new InvalidArgumentException('Missing grant info for PASSWORD grant type.');
-                }
                 break;
             default:
                 throw new InvalidArgumentException('Invalid grant type: ' . $type);
@@ -162,7 +160,7 @@ class Dailymotion
      */
     public function getAuthorizationUrl($redirectUri = null, $scope = array(), $display = 'page')
     {
-        if ($this->grantType !== self::GRANT_TYPE_TOKEN)
+        if ($this->grantType !== self::GRANT_TYPE_AUTHORIZATION)
         {
             throw new RuntimeException('This method can only be used with TOKEN grant type.');
         }
@@ -295,7 +293,10 @@ class Dailymotion
 
         $session = $this->getSession();
 
-        if (isset($session))
+        // Check if session is present and if it was created for the same grant type
+        // i.e: if the grant type to create the session was AUTHORIZATION and the current
+        //      grant type is NONE, we don't want to call method on the behalf another user
+        if (isset($session) && isset($session['grant_type']) && $session['grant_type'] === $this->grantType)
         {
             if (isset($session['access_token']) && !$forceRefresh)
             {
@@ -309,6 +310,7 @@ class Dailymotion
             // No valid access token found, try to refresh it
             if (isset($session['refresh_token']))
             {
+                $origGrantType = $session['grant_type'];
                 $session = $this->oauthTokenRequest(array
                 (
                     'grant_type' => 'refresh_token',
@@ -317,6 +319,7 @@ class Dailymotion
                     'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
                     'refresh_token' => $session['refresh_token'],
                 ));
+                $session['grant_type'] = $origGrantType;
                 $this->setSession($session);
                 return $session['access_token'];
             }
@@ -324,8 +327,7 @@ class Dailymotion
 
         try
         {
-            // No refresh token available or refresh failed
-            if ($this->grantType === self::GRANT_TYPE_TOKEN)
+            if ($this->grantType === self::GRANT_TYPE_AUTHORIZATION)
             {
                 if (isset($_GET['code']))
                 {
@@ -339,6 +341,7 @@ class Dailymotion
                         'code' => $_GET['code'],
                         'redirect_uri' => $this->grantInfo['redirect_uri'],
                     ));
+                    $session['grant_type'] = $this->grantType;
                     $this->setSession($session);
                     return $session['access_token'];
                 }
@@ -371,11 +374,17 @@ class Dailymotion
                     'client_secret' => $this->grantInfo['secret'],
                     'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
                 ));
+                $session['grant_type'] = $this->grantType;
                 $this->setSession($session);
                 return $session['access_token'];
             }
             elseif ($this->grantType === self::GRANT_TYPE_PASSWORD)
             {
+                if (!isset($this->grantInfo['username']) || !isset($this->grantInfo['password']))
+                {
+                    // Ask the client to request end-user credentials
+                    throw new DailymotionAuthRequiredException();
+                }
                 $session = $this->oauthTokenRequest(array
                 (
                     'grant_type' => 'password',
@@ -385,6 +394,7 @@ class Dailymotion
                     'username' => $this->grantInfo['username'],
                     'password' => $this->grantInfo['password'],
                 ));
+                $session['grant_type'] = $this->grantType;
                 $this->setSession($session);
                 return $session['access_token'];
             }
@@ -452,6 +462,13 @@ class Dailymotion
      */
     protected function storeSession(Array $session = null)
     {
+        if ($session['grant_type'] != self::GRANT_TYPE_NONE)
+        {
+            // Do not store session for grant type none as it would allow the end-user to perform
+            // API calls on behalf of the API key user.
+            return;
+        }
+
         if (headers_sent())
         {
             if (php_sapi_name() !== 'cli')

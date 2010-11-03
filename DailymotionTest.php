@@ -87,10 +87,37 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         $result = $this->api->call('auth.info');
         $this->assertType('array', $result);
         $this->assertArrayHasKey('username', $result);
+
+        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret);
+        $result = $this->api->call('auth.info');
+        $this->assertType('array', $result);
+        $this->assertArrayHasKey('username', $result);
+        $this->assertEquals($result['username'], $testUser);
     }
 
     public function testGrantTypeToken()
     {
+    }
+
+    /**
+     * @expectedException DailymotionAuthRequiredException
+     */
+    public function testGrantTypeChangeFromSession()
+    {
+        global $testUser, $testPassword;
+        try
+        {
+            $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret);
+            $result = $this->api->call('auth.info');
+            $this->assertType('array', $result);
+        }
+        catch (DailymotionAuthRequiredException $e)
+        {
+            // Test must not succeed if this call throws the exception
+        }
+
+        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret);
+        $this->api->call('auth.info'); // should throw auth required exception
     }
 
     /**
