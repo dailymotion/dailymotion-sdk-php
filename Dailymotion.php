@@ -22,8 +22,8 @@ class Dailymotion
      * This grant type is a 2 legs authentication: it doesn't allow to act on behalf of another user.
      * With this grant type, all API requests will be performed with the user identity of the API key owner.
      */
-    const GRANT_TYPE_NONE = 2;
-
+    const GRANT_TYPE_CLIENT_CREDENTIALS = 2;
+    const GRANT_TYPE_NONE = 2; // Backward compat
     /**
      * This grant type allows to authenticate end-user by directly providing its credentials.
      * This profile is highly discouraged for web-server workflows. If used, the username and password
@@ -87,7 +87,7 @@ class Dailymotion
      *
      * To create an API key/secret pair, go to: http://www.dailymotion.com/profile/developer
      *
-     * @param $type Integer can be one of Dailymotion::GRANT_TYPE_AUTHORIZATION, Dailymotion::GRANT_TYPE_NONE
+     * @param $type Integer can be one of Dailymotion::GRANT_TYPE_AUTHORIZATION, Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS
      *                      or Dailymotion::GRANT_TYPE_PASSWORD.
      * @param $apiKey the API key
      * @param $apiSecret the API secret
@@ -124,7 +124,7 @@ class Dailymotion
                     $info['redirect_uri'] = $this->getCurrentUrl();
                 }
                 break;
-            case self::GRANT_TYPE_NONE:
+            case self::GRANT_TYPE_CLIENT_CREDENTIALS:
             case self::GRANT_TYPE_PASSWORD:
                 break;
             default:
@@ -221,7 +221,7 @@ class Dailymotion
         }
         catch (DailymotionAuthException $e)
         {
-            if ($e->error === 'expired_token')
+            if ($e->error === 'invalid_token')
             {
                 // Retry by forcing the refresh of the access token
                 $result = json_decode($this->oauthRequest($this->apiEndpointUrl, $payload, $this->getAccessToken(true), $headers, $status_code), true);
@@ -295,7 +295,7 @@ class Dailymotion
 
         // Check if session is present and if it was created for the same grant type
         // i.e: if the grant type to create the session was AUTHORIZATION and the current
-        //      grant type is NONE, we don't want to call method on the behalf another user
+        //      grant type is CLIENT_CREDENTIALS, we don't want to call method on the behalf another user
         if (isset($session) && isset($session['grant_type']) && $session['grant_type'] === $this->grantType)
         {
             if (isset($session['access_token']) && !$forceRefresh)
@@ -365,11 +365,11 @@ class Dailymotion
                     throw new DailymotionAuthRequiredException();
                 }
             }
-            elseif ($this->grantType === self::GRANT_TYPE_NONE)
+            elseif ($this->grantType === self::GRANT_TYPE_CLIENT_CREDENTIALS)
             {
                 $session = $this->oauthTokenRequest(array
                 (
-                    'grant_type' => 'none',
+                    'grant_type' => 'client_credentials',
                     'client_id' => $this->grantInfo['key'],
                     'client_secret' => $this->grantInfo['secret'],
                     'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
@@ -462,9 +462,9 @@ class Dailymotion
      */
     protected function storeSession(Array $session = null)
     {
-        if ($session['grant_type'] != self::GRANT_TYPE_NONE)
+        if ($session['grant_type'] != self::GRANT_TYPE_CLIENT_CREDENTIALS)
         {
-            // Do not store session for grant type none as it would allow the end-user to perform
+            // Do not store session for grant type client_credentials as it would allow the end-user to perform
             // API calls on behalf of the API key user.
             return;
         }
@@ -557,7 +557,7 @@ class Dailymotion
     {
         if ($accessToken !== null)
         {
-            $headers[] = 'Authorization: OAuth ' . $accessToken;
+            $headers[] = 'Authorization: OAuth2 ' . $accessToken;
         }
         $result = $this->httpRequest($url, $payload, $headers, $status_code, $response_headers);
 

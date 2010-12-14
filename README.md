@@ -71,16 +71,16 @@ responsibility to ask the user for its credentials. Make sure you API secret rem
         // <YOUR CODE>
     }
 
-#### None Grant Type
+#### Client Credentials Grant Type
 
 If you don't need to access the Dailymotion API on behalf of a user because, for instance, you plan to
-only access public data, you can use the NONE grant type. With this grant type, you will only have
+only access public data, you can use the CLIENT_CREDENTIALS grant type. With this grant type, you will only have
 access to public data or private date of the user owning the API key.
 
     <?php
 
     $api = new Dailymotion();
-    $api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $apiKey, $apiSecret);
+    $api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $apiKey, $apiSecret);
     $result = $api->call($method, $arguments);
 
 ### File Upload
