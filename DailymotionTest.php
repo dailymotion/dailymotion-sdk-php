@@ -128,13 +128,16 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         $this->api->call('test.echo');
     }
 
-    public function testUploadFile()
+    public function testVideoUpload()
     {
         global $testVideoFile;
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret);
+        $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret, array('write', 'delete'));
         $url = $this->api->uploadFile($testVideoFile);
         $this->assertType('string', $url);
         $this->assertContains('http://', $url);
+        $result = $this->api->call('video.create', array('url' => $url));
+        $this->assertArrayHasKey('id', $result);
+        $this->api->call('video.delete', array('id' => $result['id']));
     }
 }
 
