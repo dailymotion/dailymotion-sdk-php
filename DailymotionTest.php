@@ -107,7 +107,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         global $testUser, $testPassword;
         try
         {
-            $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret);
+            $this->api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $this->apiKey, $this->apiSecret);
             $result = $this->api->call('auth.info');
             $this->assertType('array', $result);
         }
@@ -130,8 +130,8 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
 
     public function testVideoUpload()
     {
-        global $testVideoFile;
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_NONE, $this->apiKey, $this->apiSecret, array('write', 'delete'));
+        global $testUser, $testPassword, $testVideoFile;
+        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret, array('write','delete'), array('username' => $testUser, 'password' => $testPassword));
         $url = $this->api->uploadFile($testVideoFile);
         $this->assertType('string', $url);
         $this->assertContains('http://', $url);
