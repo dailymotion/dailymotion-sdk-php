@@ -69,7 +69,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
      */
     public function testNoGrantTypeAuthRequired()
     {
-        $result = $this->api->call('auth.info');
+        $result = $this->api->call('video.subscriptions');
     }
 
     public function testGrantTypeClientCredentials()
