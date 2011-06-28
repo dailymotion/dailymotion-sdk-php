@@ -85,13 +85,13 @@ access to public data or private date of the user owning the API key.
 
 ### File Upload
 
-Certain methods like `video.upload` requires a URL to a file. To create those URLs, the `uploadFile:delegate:` method have to be used like this:
+Certain methods like `POST /videos` requires a URL to a file. To create those URLs, the `uploadFile()` method can be used to create such URL:
 
     $url = $api->uploadFile($filePath);
 
-You can then use this URL as an argument to methods requiring such parameter. For instance to create a video:
+You can then use this URL as an argument to methods requiring a URL parameter. For instance to create a video:
 
-    $result = $api->call('video.create', array('url' => $url));
+    $result = $api->call('POST /videos', array('url' => $url));
 
 Feedback
 --------
