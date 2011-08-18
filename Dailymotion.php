@@ -7,7 +7,7 @@
  */
 class Dailymotion
 {
-    const VERSION = '1.2';
+    const VERSION = '1.3';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
