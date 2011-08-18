@@ -623,6 +623,14 @@ class Dailymotion
         );
 
         $response = curl_exec($ch);
+
+        if (curl_errno($ch) == 60) // CURLE_SSL_CACERT
+        {
+            error_log('Invalid or no certificate authority found, using bundled information');
+            curl_setopt($ch, CURLOPT_CAINFO, dirname(__FILE__) . '/dm_ca_chain_bundle.crt');
+            $response = curl_exec($ch);
+        }
+
         if ($response === false)
         {
             $e = new DailymotionTransportException(curl_error($ch), curl_errno($ch));
