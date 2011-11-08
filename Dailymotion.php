@@ -54,7 +54,7 @@ class Dailymotion
     /**
      * The API enpoint URL
      */
-    public $apiEndpointUrl = 'https://api.dailymotion.com/json';
+    public $apiEndpointUrl = 'https://api.dailymotion.com';
 
     /**
      * The OAuth authorization server endpoint URL
