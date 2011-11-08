@@ -412,7 +412,7 @@ class Dailymotion
      *
      * @param $session Array the session to set
      */
-    protected function setSession(Array $session = null)
+    public function setSession(Array $session = null)
     {
         $this->session = $session;
         if ($this->storeSession)
@@ -426,7 +426,7 @@ class Dailymotion
      *
      * @return Array the current session or null
      */
-    protected function getSession()
+    public function getSession()
     {
         if (!isset($this->session))
         {
