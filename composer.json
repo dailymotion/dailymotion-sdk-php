@@ -1,0 +1,8 @@
+{
+    "name": "dailymotion/sdk",
+    "type": "library",
+    "description": "Dailymotion PHP SDK",
+    "keywords": ["dailymotion","sdk","api"],
+    "homepage": "http://dailymotion.com",
+    "version": "master"
+}
