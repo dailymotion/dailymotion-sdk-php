@@ -6,6 +6,6 @@
     "homepage": "http://dailymotion.com",
     "version": "master",
     "autoload": {
-        "classmap": ["./"]
+        "classmap": ["Dailymotion.php"]
     }
 }
