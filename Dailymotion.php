@@ -642,6 +642,7 @@ class Dailymotion
         $info = curl_getinfo($ch);
         curl_close($ch);
 
+        preg_match('/Content-Length\:[\s]?([\d]+)\r\n/i', $response, $tab);
         $headers = array();
         $headers_str = substr($response, 0, $info['header_size']);
         strtok($headers_str, "\r\n"); // skip status code
@@ -656,7 +657,7 @@ class Dailymotion
             error_log(substr($response, $info['header_size']));
         }
 
-        return substr($response, $info['header_size']);
+        return substr($response, -$tab[1]);
     }
 
     /**
