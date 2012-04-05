@@ -642,8 +642,10 @@ class Dailymotion
         $info = curl_getinfo($ch);
         curl_close($ch);
 
+        $body_offset = (!empty($info['download_content_length'])) ? -$info['download_content_length'] : $info['header_size'];
+        
         $headers = array();
-        $headers_str = substr($response, 0, $info['header_size']);
+        $headers_str = trim(substr($response, 0, $body_offset));
         strtok($headers_str, "\r\n"); // skip status code
         while(($name = trim(strtok(":"))) && ($value = trim(strtok("\r\n"))))
         {
@@ -651,11 +653,7 @@ class Dailymotion
         }
         $response_headers = $headers;
 
-        // Try not rely on header_size if Content-Length header is present
-        $body_offset = ($length = $headers['content-length']) && is_numeric($length) ? -$length : $info['header_size'];
-
-        if ($this->debug)
-        {
+        if ($this->debug) {
             error_log(substr($response, $body_offset));
         }
 
