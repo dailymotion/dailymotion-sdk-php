@@ -642,11 +642,6 @@ class Dailymotion
         $info = curl_getinfo($ch);
         curl_close($ch);
 
-        if (!preg_match('/Content-Length\:[\s]?([\d]+)\r\n/i', $response, $tab)) {
-			$length = $info['header_size'];
-		} else {
-			$length = -$tab[1];
-		}
         $headers = array();
         $headers_str = substr($response, 0, $info['header_size']);
         strtok($headers_str, "\r\n"); // skip status code
@@ -656,12 +651,15 @@ class Dailymotion
         }
         $response_headers = $headers;
 
+        // Try not rely on header_size if Content-Length header is present
+        $body_offset = ($length = $headers['content-length']) && is_numeric($length) ? -$length : $info['header_size'];
+
         if ($this->debug)
         {
-            error_log(substr($response, $info['header_size']));
+            error_log(substr($response, $body_offset));
         }
 
-        return substr($response, $length);
+        return substr($response, $body_offset);
     }
 
     /**
