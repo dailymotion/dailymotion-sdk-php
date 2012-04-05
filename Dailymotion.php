@@ -651,12 +651,15 @@ class Dailymotion
         }
         $response_headers = $headers;
 
+        // Try not rely on header_size if Content-Length header is present
+        $body_offset = ($length = $headers['content-length']) && is_numeric($length) ? -$length : $info['header_size'];
+
         if ($this->debug)
         {
-            error_log(substr($response, $info['header_size']));
+            error_log(substr($response, $body_offset));
         }
 
-        return substr($response, $info['header_size']);
+        return substr($response, $body_offset);
     }
 
     /**
