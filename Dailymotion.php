@@ -652,7 +652,7 @@ class Dailymotion
         $response_headers = $headers;
 
         // Try not rely on header_size if Content-Length header is present
-        $body_offset = ($length = $headers['content-length']) && is_numeric($length) ? -$length : $info['header_size'];
+        $body_offset = (isset($headers['content-length']) && ($length = $headers['content-length']) && is_numeric($length)) ? -$length : $info['header_size'];
 
         if ($this->debug)
         {
