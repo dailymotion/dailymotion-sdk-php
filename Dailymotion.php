@@ -612,6 +612,7 @@ class Dailymotion
                 CURLOPT_CONNECTTIMEOUT => $this->connectionTimeout,
                 CURLOPT_TIMEOUT => $this->timeout,
                 CURLOPT_PROXY => $this->proxy,
+                CURLOPT_SSLVERSION => 3, // See http://bit.ly/I1OYCn
                 CURLOPT_USERAGENT => sprintf('Dailymotion-PHP/%s (PHP %s; %s)', self::VERSION, PHP_VERSION, php_sapi_name()),
                 CURLOPT_HEADER => true,
                 CURLOPT_RETURNTRANSFER => true,
