@@ -193,9 +193,33 @@ class Dailymotion
     }
 
     /**
+     * Alias for $api->call("GET $path")
+     */
+    public function get($path, $args = array())
+    {
+        return $this->call('GET ' . $path, $args);
+    }
+
+    /**
+     * Alias for $api->call("POST $path")
+     */
+    public function post($path, $args = array())
+    {
+        return $this->call('POST ' . $path, $args);
+    }
+
+    /**
+     * Alias for $api->delete("GET $path")
+     */
+    public function delete($path, $args = array())
+    {
+        return $this->call('DELETE ' . $path, $args);
+    }
+
+    /**
      * Call a remote method.
      *
-     * @param $method String the method name to call.
+     * @param $ressource String the method name to call.
      * @param $args Array an associative array of arguments.
      *
      * @return mixed the method response
