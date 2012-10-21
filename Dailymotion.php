@@ -91,7 +91,8 @@ class Dailymotion
      *                      or Dailymotion::GRANT_TYPE_PASSWORD.
      * @param $apiKey the API key
      * @param $apiSecret the API secret
-     * @param $scope mixed the permission scope requested (can be none or any of 'read', 'write', 'delete').
+     * @param $scope mixed the permission scope requested (see http://www.dailymotion.com/doc/api/authentication.html#requesting-extended-permissions
+     *                     for a list of available permissions).
      *                     To requested several scope keys, use an array or separate keys by whitespaces.
      * @param $info Array info associated to the chosen grant type
      *
@@ -155,10 +156,11 @@ class Dailymotion
      * Get an authorization URL for use with redirects. By default, full page redirect is assumed.
      * If you are using a generated URL with a window.open() call in Javascript, you can pass in display=popup.
      *
-     * @param $scope Array a list of requested scope (allowed: create, read, update, delete)
+     * @param $scope Array a list of requested scope (see http://www.dailymotion.com/doc/api/authentication.html#requesting-extended-permissions
+     *                     for a list of available permissions)
      * @param $display String can be "page" (default, full page), "popup" or "mobile"
      */
-    public function getAuthorizationUrl($redirectUri = null, $scope = array(), $display = 'page')
+    public function getAuthorizationUrl($display = 'page')
     {
         if ($this->grantType !== self::GRANT_TYPE_AUTHORIZATION)
         {
@@ -170,7 +172,7 @@ class Dailymotion
             'response_type' => 'code',
             'client_id' => $this->grantInfo['key'],
             'redirect_uri' => $this->grantInfo['redirect_uri'],
-            'scope' => is_array($scope) ? implode(' ', $scope) : $scope,
+            'scope' => is_array($this->grantInfo['scope']) ? implode(' ', $scope) : $scope,
             'display' => $display,
         ), null, '&');
     }
@@ -184,7 +186,7 @@ class Dailymotion
      */
     public function uploadFile($filePath)
     {
-        $result = $this->call('file.upload');
+        $result = $this->get('/file/upload');
         $timeout = $this->timeout;
         $this->timeout = null;
         $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);

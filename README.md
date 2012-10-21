@@ -53,12 +53,12 @@ responsibility to ask the user for its credentials. Make sure you API secret rem
 
     if (isset($_POST['username']) || isset($_POST['password']))
     {
-        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $apiKey, $apiSecret, $scope = 'read write'),
+        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $apiKey, $apiSecret, $scope = array('manage_videos'),
                            array('username' => $_POST['username'], 'password' => $_POST['password']));
     }
     else
     {
-        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $apiKey, $apiSecret, $scope = 'read write');
+        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $apiKey, $apiSecret, $scope = array('manage_videos'));
     }
 
     try
