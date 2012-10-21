@@ -488,13 +488,6 @@ class Dailymotion
      */
     protected function storeSession(Array $session = null)
     {
-        if ($session['grant_type'] != self::GRANT_TYPE_CLIENT_CREDENTIALS)
-        {
-            // Do not store session for grant type client_credentials as it would allow the end-user to perform
-            // API calls on behalf of the API key user.
-            return;
-        }
-
         if (headers_sent())
         {
             if (php_sapi_name() !== 'cli')
