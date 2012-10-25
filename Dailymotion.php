@@ -172,7 +172,7 @@ class Dailymotion
             'response_type' => 'code',
             'client_id' => $this->grantInfo['key'],
             'redirect_uri' => $this->grantInfo['redirect_uri'],
-            'scope' => is_array($this->grantInfo['scope']) ? implode(' ', $scope) : $scope,
+            'scope' => is_array($scope = $this->grantInfo['scope']) ? implode(' ', $scope) : $scope,
             'display' => $display,
         ), null, '&');
     }
