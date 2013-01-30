@@ -1,5 +1,6 @@
 {
     "name": "dailymotion/sdk",
+    "license": "MIT",
     "type": "library",
     "description": "Dailymotion PHP SDK",
     "keywords": ["dailymotion","sdk","api"],
