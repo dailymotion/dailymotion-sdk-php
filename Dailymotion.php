@@ -619,6 +619,7 @@ class Dailymotion
      */
     protected function httpRequest($url, $payload, $headers = null, &$status_code = null, &$response_headers = null)
     {
+        $payload = is_array($payload) ? http_build_query($payload) : $payload;
         $ch = curl_init();
 
         // Force removal of the Exept: 100-continue header automatically added by curl
