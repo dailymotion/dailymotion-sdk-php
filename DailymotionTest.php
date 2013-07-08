@@ -76,7 +76,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
     {
         $this->api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $this->apiKey, $this->apiSecret);
         $result = $this->api->call('auth.info');
-        $this->assertType('array', $result);
+        $this->assertInternalType('array', $result);
         $this->assertArrayHasKey('username', $result);
     }
 
@@ -85,12 +85,12 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         global $testUser, $testPassword;
         $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret, null, array('username' => $testUser, 'password' => $testPassword));
         $result = $this->api->call('auth.info');
-        $this->assertType('array', $result);
+        $this->assertInternalType('array', $result);
         $this->assertArrayHasKey('username', $result);
 
         $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret);
         $result = $this->api->call('auth.info');
-        $this->assertType('array', $result);
+        $this->assertInternalType('array', $result);
         $this->assertArrayHasKey('username', $result);
         $this->assertEquals($result['username'], $testUser);
     }
@@ -109,7 +109,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         {
             $this->api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $this->apiKey, $this->apiSecret);
             $result = $this->api->call('auth.info');
-            $this->assertType('array', $result);
+            $this->assertInternalType('array', $result);
         }
         catch (DailymotionAuthRequiredException $e)
         {
@@ -133,7 +133,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         global $testUser, $testPassword, $testVideoFile;
         $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret, array('write','delete'), array('username' => $testUser, 'password' => $testPassword));
         $url = $this->api->uploadFile($testVideoFile);
-        $this->assertType('string', $url);
+        $this->assertInternalType('string', $url);
         $this->assertContains('http://', $url);
         $result = $this->api->call('video.create', array('url' => $url));
         $this->assertArrayHasKey('id', $result);
