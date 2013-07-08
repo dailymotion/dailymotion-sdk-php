@@ -187,6 +187,7 @@ class Dailymotion
     public function uploadFile($filePath)
     {
         $result = $this->get('/file/upload');
+
         $timeout = $this->timeout;
         $this->timeout = null;
         $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
@@ -528,7 +529,7 @@ class Dailymotion
      */
     protected function oauthTokenRequest(Array $args)
     {
-        $result = json_decode($response = $this->httpRequest($this->oauthTokenEndpointUrl, $args, null, $status_code, $response_headers), true);
+        $result = json_decode($response = $this->httpRequest($this->oauthTokenEndpointUrl, $args, null, $status_code, $response_headers, true), true);
 
         if (!isset($result))
         {
@@ -617,9 +618,10 @@ class Dailymotion
      *
      * @throws DailymotionTransportException if an error occurs during request.
      */
-    protected function httpRequest($url, $payload, $headers = null, &$status_code = null, &$response_headers = null)
+    protected function httpRequest($url, $payload, $headers = null, &$status_code = null, &$response_headers = null, $encode_payload=false)
     {
-        $payload = is_array($payload) ? http_build_query($payload) : $payload;
+        $payload = (is_array($payload) && true === $encode_payload) ? http_build_query($payload) : $payload;
+
         $ch = curl_init();
 
         // Force removal of the Exept: 100-continue header automatically added by curl
