@@ -641,9 +641,16 @@ class Dailymotion
                 CURLOPT_URL => $url,
                 CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_POSTFIELDS => $payload,
-                CURLOPT_VERBOSE => $this->debug,
+                CURLOPT_NOPROGRESS => !($this->debug && is_array($payload) && array_key_exists('file', $payload)),
             )
         );
+
+        if ($this->debug)
+        {
+            print ">>> [$url] >>>\n";
+            $message = print_r(($json = json_decode($payload)) == NULL ? $payload : $json, true);
+            print $message . (strpos($message, "\n") ? '' : "\n");
+        }
 
         $response = curl_exec($ch);
 
@@ -676,13 +683,16 @@ class Dailymotion
 
         // Try not rely on header_size if Content-Length header is present
         $body_offset = (isset($headers['content-length']) && ($length = $headers['content-length']) && is_numeric($length)) ? -$length : $info['header_size'];
+        $payload = substr($response, $body_offset);
 
         if ($this->debug)
         {
-            error_log(substr($response, $body_offset));
+            print "<<< [$url] <<<\n";
+            print_r(($json = json_decode($payload)) == NULL ? $payload : $json);
+            print "\n";
         }
 
-        return substr($response, $body_offset);
+        return $payload;
     }
 
     /**
