@@ -181,16 +181,20 @@ class Dailymotion
      * Upload a file on the Dailymotion servers and generate an URL to be used with API methods.
      *
      * @param $filePath String a path to the file to upload
+     * @param $uploadUrl OPTIONAL The upload url to use
      *
      * @return String the resulting URL
      */
-    public function uploadFile($filePath)
+    public function uploadFile($filePath, $uploadUrl = null)
     {
-        $result = $this->get('/file/upload');
+        if (null === $uploadUrl) {
+            $result = $this->get('/file/upload');
+            $uploadUrl = $result['upload_url'];
+        }
 
         $timeout = $this->timeout;
         $this->timeout = null;
-        $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
+        $result = json_decode($this->httpRequest($uploadUrl, array('file' => '@' . $filePath)), true);
         $this->timeout = $timeout;
         return $result['url'];
     }
