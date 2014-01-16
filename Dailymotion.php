@@ -50,6 +50,11 @@ class Dailymotion
      * An HTTP proxy to tunnel requests through (format: hostname[:port])
      */
     public $proxy = null;
+    
+    /**
+     * User and password for proxy (format: user:password)
+     */    
+    public $proxyUserPwd = null;
 
     /**
      * The API enpoint URL
@@ -190,7 +195,9 @@ class Dailymotion
 
         $timeout = $this->timeout;
         $this->timeout = null;
-        $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
+        $result = $this->httpRequest($result['upload_url'], array('file' => '@' . $filePath));
+        $result = json_decode($result, true);
+
         $this->timeout = $timeout;
         return $result['url'];
     }
@@ -634,10 +641,12 @@ class Dailymotion
                 CURLOPT_CONNECTTIMEOUT => $this->connectionTimeout,
                 CURLOPT_TIMEOUT => $this->timeout,
                 CURLOPT_PROXY => $this->proxy,
+                CURLOPT_PROXYUSERPWD => $this->proxyUserPwd,
                 CURLOPT_SSLVERSION => 3, // See http://bit.ly/I1OYCn
                 CURLOPT_USERAGENT => sprintf('Dailymotion-PHP/%s (PHP %s; %s)', self::VERSION, PHP_VERSION, php_sapi_name()),
-                CURLOPT_HEADER => true,
-                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HEADER => 1,
+                CURLOPT_RETURNTRANSFER => 1,
+                CURLOPT_FOLLOWLOCATION => 1,
                 CURLOPT_URL => $url,
                 CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_POSTFIELDS => $payload,
@@ -653,7 +662,7 @@ class Dailymotion
         }
 
         $response = curl_exec($ch);
-
+        
         if (curl_errno($ch) == 60) // CURLE_SSL_CACERT
         {
             error_log('Invalid or no certificate authority found, using bundled information');
@@ -671,18 +680,60 @@ class Dailymotion
         $status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $info = curl_getinfo($ch);
         curl_close($ch);
-
+        
         $headers = array();
-        $headers_str = substr($response, 0, $info['header_size']);
-        strtok($headers_str, "\r\n"); // skip status code
-        while(($name = trim(strtok(":"))) && ($value = trim(strtok("\r\n"))))
-        {
-            $headers[strtolower($name)] = (isset($headers[$name]) ? $headers[$name] . '; ' : '') . $value;
-        }
-        $response_headers = $headers;
+        
+        // $info['header_size'] cannot be trusted behind a proxy...
+        // so trying to get body content lenght...
+        if (($body_len = intval($info['download_content_length'])) > 0) {
+        	// normal behaviour...
+        	
+        	$headers_len = strlen($response) - $body_len;
+        	
+        	$headers_str = substr($response, 0, $headers_len);
+        	strtok($headers_str, "\r\n"); // skip status code
+        	while(($name = trim(strtok(":"))) && ($value = trim(strtok("\r\n"))))
+        	{
+        		$headers[strtolower($name)] = (isset($headers[$name]) ? $headers[$name] . '; ' : '') . $value;
+        	}
 
+        }
+        else {
+        	// Houston... we've got a problem...
+        	// explode the response and read headers until something not being a header..
+        	
+        	$lines = explode("\r\n", $response);	
+        	$line = array_shift($lines); // skip status code
+        	
+        	$headers_len = strlen($line) + 2;
+        	foreach ($lines as $line) {
+        		$headers_len += strlen($line) + 2;
+        		if (preg_match('/^([^:]+)\:(.*)$/i', $line, $matches)) {
+        			$name = trim(strtolower($matches[1]));
+        			$value = trim($matches[2]);
+        			$headers[$name] = (isset($headers[$name]) ? $headers[$name] . '; ' : '') . $value;
+        		}
+        		else {
+        			// should be the empty line between header and body
+        			$headers_len += strlen($line);
+        			break;
+        		}
+        	}
+
+        	if (isset($headers['content-length']) && ($body_len = intval($headers['content-length'])) > 0) {
+        		// touch down !
+        		$headers_len = strlen($response) - $body_len;
+        	}
+        	
+        }
+        
+        $response_headers = $headers;
+        
         // Try not rely on header_size if Content-Length header is present
-        $body_offset = (isset($headers['content-length']) && ($length = $headers['content-length']) && is_numeric($length)) ? -$length : $info['header_size'];
+        // $body_offset = (isset($headers['download_content_length']) && ($length = $headers['download_content_length']) && is_numeric($length)) ? -$length : $info['header_size'];
+        
+        $body_offset = $headers_len;
+        
         $payload = substr($response, $body_offset);
 
         if ($this->debug)
