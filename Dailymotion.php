@@ -716,7 +716,7 @@ class Dailymotion
      *
      * @return String the current URL
      */
-    public function getCurrentUrl()
+    protected function getCurrentUrl()
     {
         $secure = false;
         if (isset($_SERVER['HTTPS']))
