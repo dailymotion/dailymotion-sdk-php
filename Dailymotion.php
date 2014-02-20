@@ -83,6 +83,22 @@ class Dailymotion
         $storeSession = true;
 
     /**
+     * List of query parameters that get automatically dropped when rebuilding
+     * the current URL.
+     * @var array
+    */
+    protected static $DROP_QUERY_PARAMS = array(
+        'code',
+        'scope',
+        'error',
+        'error_description',
+        'error_uri',
+        'state',
+        'uid',
+        'sig'
+    );
+
+    /**
      * Change the default grant type.
      *
      * To create an API key/secret pair, go to: http://www.dailymotion.com/profile/developer
@@ -700,7 +716,7 @@ class Dailymotion
      *
      * @return String the current URL
      */
-    protected function getCurrentUrl()
+    public function getCurrentUrl()
     {
         $secure = false;
         if (isset($_SERVER['HTTPS']))
@@ -725,7 +741,7 @@ class Dailymotion
         if ($parts['query'] !== '')
         {
             parse_str($parts['query'], $params);
-            foreach(array('code', 'scope', 'error', 'error_description', 'error_uri', 'state') as $name)
+            foreach(self::$DROP_QUERY_PARAMS as $name)
             {
                 unset($params[$name]);
             }
