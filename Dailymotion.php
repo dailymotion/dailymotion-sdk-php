@@ -200,10 +200,13 @@ class Dailymotion
      *
      * @return String the resulting URL
      */
-    public function uploadFile($filePath)
+    public function uploadFile($filePath, $force = '')
     {
         $result = $this->get('/file/upload');
-
+        if ($force != '')
+        {
+            $result['upload_url'] = preg_replace('@://[^/]+/@', "://$force/", $result['upload_url']);
+        }
         $timeout = $this->timeout;
         $this->timeout = null;
         $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
