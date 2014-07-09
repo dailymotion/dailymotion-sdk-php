@@ -209,7 +209,16 @@ class Dailymotion
         }
         $timeout = $this->timeout;
         $this->timeout = null;
-        $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
+
+        // PHP 5.5 introduced a CurlFile object that deprecates the old @filename syntax
+        // See: https://wiki.php.net/rfc/curl-file-upload
+        if (function_exists('curl_file_create')) {
+            $payload = array('file' => curl_file_create($filePath));
+        } else {
+            $payload = array('file' => '@' . $filePath);
+        }
+
+        $result = json_decode($this->httpRequest($result['upload_url'], $payload), true);
         $this->timeout = $timeout;
         return $result['url'];
     }
@@ -661,6 +670,7 @@ class Dailymotion
                 CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_POSTFIELDS => $payload,
                 CURLOPT_NOPROGRESS => !($this->debug && is_array($payload) && array_key_exists('file', $payload)),
+                // CURLOPT_CAINFO => dirname(__FILE__) . '/dm_ca_chain_bundle.crt',
             )
         );
 
