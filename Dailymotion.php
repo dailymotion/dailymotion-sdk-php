@@ -192,6 +192,26 @@ class Dailymotion
             'display' => $display,
         ), null, '&');
     }
+    /**
+     * Get the file path with the curl format
+     *
+     * PHP 5.5 introduced a CurlFile object that deprecates the old @filename syntax
+     * See: https://wiki.php.net/rfc/curl-file-upload
+     *
+     * @param $filePath String a path to the file to upload
+     * @return mixed The file curl path
+     */
+    private function getCurlFile($filePath)
+    {
+        if (function_exists('curl_file_create'))
+        {
+            return curl_file_create($filePath);
+        }
+        else
+        {
+            return sprintf("@%s", $filePath);
+        }
+    }
 
     /**
      * Upload a file on the Dailymotion servers and generate an URL to be used with API methods.
@@ -209,7 +229,7 @@ class Dailymotion
         }
         $timeout = $this->timeout;
         $this->timeout = null;
-        $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
+        $result = json_decode($this->httpRequest($result['upload_url'], array('file' => $this->getCurlFile($filePath))), true);
         $this->timeout = $timeout;
         return $result['url'];
     }
