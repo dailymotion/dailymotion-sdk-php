@@ -23,7 +23,7 @@ Here is a usage example:
     <?php
 
     $api = new Dailymotion();
-    $api->setGrantType(Dailymotion::GRANT_TYPE_AUTHORIZATION, $apiKey, $apiSecret)
+    $api->setGrantType(Dailymotion::GRANT_TYPE_AUTHORIZATION, $apiKey, $apiSecret);
 
     try
     {
