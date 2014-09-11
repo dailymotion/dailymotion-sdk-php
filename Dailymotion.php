@@ -111,7 +111,7 @@ class Dailymotion
      * The Dailymotion OAuth authorization server endpoint URL.
      * @var string
      */
-    public $oauthAuthorizeEndpointUrl = 'https://api.dailymotion.com/oauth/authorize';
+    public $oauthAuthorizeEndpointUrl = 'https://www.dailymotion.com/oauth/authorize';
 
     /**
      * The Dailymotion OAuth token server endpoind URL.
