@@ -1,92 +1,164 @@
 <?php
 
 /**
- * Provides access to the Dailymotion API.
+ * Provides access to the Dailymotion Graph API.
  *
  * @author Olivier Poitrey <rs@dailymotion.com>
  */
 class Dailymotion
 {
-    const VERSION = '1.3';
+    /**
+     * Current version number of this SDK.
+     * @var string Version number
+     */
+    const VERSION = '1.6';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
      * on Dailymotion. Once authorized, a refresh token is requested by the API client to the token
      * server and stored in the end-user's cookie (or other storage technique implemented by subclasses).
      * The refresh token is then used to request time limited access token to the token server.
+     * @var int
      */
     const GRANT_TYPE_AUTHORIZATION = 1;
-    const GRANT_TYPE_TOKEN = 1; // deprecated name
+
+    /**
+     * @deprecated since 2010-11-03
+     * @see Dailymotion::GRANT_TYPE_AUTHORIZATION
+     * @var int
+     */
+    const GRANT_TYPE_TOKEN = 1;
 
     /**
      * This grant type is a 2 legs authentication: it doesn't allow to act on behalf of another user.
      * With this grant type, all API requests will be performed with the user identity of the API key owner.
+     * @var int
      */
     const GRANT_TYPE_CLIENT_CREDENTIALS = 2;
-    const GRANT_TYPE_NONE = 2; // Backward compat
+
     /**
-     * This grant type allows to authenticate end-user by directly providing its credentials.
+     * @deprecated since 2010-12-14
+     * @see Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS
+     * @var int
+     */
+    const GRANT_TYPE_NONE = 2;
+
+    /**
+     * This grant type allows to authenticate an end-user by directly providing its credentials.
      * This profile is highly discouraged for web-server workflows. If used, the username and password
-     * MUST NOT be stored by the client.
+     * *MUST NOT* be stored by the client.
+     * @var int
      */
     const GRANT_TYPE_PASSWORD = 3;
 
     /**
-     * Activate debug output
+     * Type of display for the OAuth authorization.
+     * @var string
+     */
+    const DISPLAY_PAGE = 'page';
+    const DISPLAY_POPUP = 'popup';
+    const DISPLAY_MOBILE = 'mobile';
+
+    /**
+     * Maximum number of redirections to follow when not in `safe_mode` or `open_basedir`.
+     * @var int
+     */
+    const CURLOPT_MAXREDIRS = 3;
+
+    /**
+     * Name of the cookie containing the session.
+     * @var string
+     */
+    const SESSION_COOKIE = 'dms_%s';
+
+    /**
+     * Activate debug output.
+     * @var boolean
      */
     public $debug = false;
 
     /**
-     * Maximum number of secondes allowed for each HTTP requests
+     * Maximum number of seconds allowed for each HTTP request to complete.
+     * @var int
      */
     public $timeout = 5;
 
     /**
-     * Maximum number of secondes allowed to wait for connection establishment of HTTP requests
+     * Maximum number of seconds to wait for connection establishment of HTTP requests.
+     * @var int
      */
     public $connectionTimeout = 2;
 
     /**
-     * An HTTP proxy to tunnel requests through (format: hostname[:port])
+     * An HTTP proxy to tunnel HTTP requests through (format: `hostname[:port]`).
+     * @var string
      */
     public $proxy = null;
 
     /**
-     * The API enpoint URL
+     * Username and password for the HTTP proxy (format: `user:password`).
+     * @var string
+     */
+    public $proxyCredentials = null;
+
+    /**
+     * The Dailymotion API endpoint URL.
+     * @var string
      */
     public $apiEndpointUrl = 'https://api.dailymotion.com';
 
     /**
-     * The OAuth authorization server endpoint URL
+     * The Dailymotion OAuth authorization server endpoint URL.
+     * @var string
      */
     public $oauthAuthorizeEndpointUrl = 'https://api.dailymotion.com/oauth/authorize';
 
     /**
-     * The OAuth token server enpoind URL
+     * The Dailymotion OAuth token server endpoind URL.
+     * @var string
      */
     public $oauthTokenEndpointUrl = 'https://api.dailymotion.com/oauth/token';
 
     /**
-     * Domain of the cookie used to store the session
+     * Domain name of the cookie used to store the session.
+     * @var string
      */
-    public $cookieDomain = '';
+    public $cookieDomain = null;
 
     /**
-     * Life time of the cookie used to store the session
+     * Life time (in seconds) of the cookie used to store the session.
+     * @var int
      */
     public $cookieLifeTime = 31536000; // 1 year
 
-    protected
-        $grantType = null,
-        $grantInfo = null,
-        $session = null,
-        $storeSession = true;
+    /**
+     * Type of the current OAuth2 authorization attempt.
+     * @var int
+     */
+    protected $grantType = null;
 
     /**
-     * List of query parameters that get automatically dropped when rebuilding
-     * the current URL.
+     * Information about the current OAuth2 authorization attempt.
      * @var array
-    */
+     */
+    protected $grantInfo = array();
+
+    /**
+     * Session information for the current OAuth2 authorization attempt.
+     * @var array
+     */
+    protected $session = array();
+
+    /**
+     * Whether to store the session information for the current OAuth2 authorization attempt or not.
+     * @var boolean
+     */
+    protected $storeSession = true;
+
+    /**
+     * List of query parameters that get automatically dropped when rebuilding the current URL.
+     * @var array
+     */
     protected static $DROP_QUERY_PARAMS = array(
         'code',
         'scope',
@@ -95,201 +167,238 @@ class Dailymotion
         'error_uri',
         'state',
         'uid',
-        'sig'
+        'sig',
     );
 
     /**
      * Change the default grant type.
-     *
      * To create an API key/secret pair, go to: http://www.dailymotion.com/profile/developer
      *
-     * @param $type Integer can be one of Dailymotion::GRANT_TYPE_AUTHORIZATION, Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS
-     *                      or Dailymotion::GRANT_TYPE_PASSWORD.
-     * @param $apiKey the API key
-     * @param $apiSecret the API secret
-     * @param $scope mixed the permission scope requested (see http://www.dailymotion.com/doc/api/authentication.html#requesting-extended-permissions
-     *                     for a list of available permissions).
-     *                     To requested several scope keys, use an array or separate keys by whitespaces.
-     * @param $info Array info associated to the chosen grant type
+     * @param int    $type      Can be one of `Dailymotion::GRANT_TYPE_AUTHORIZATION`,
+     *                          `Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS` or `Dailymotion::GRANT_TYPE_PASSWORD`.
+     * @param string $apiKey    Client API key.
+     * @param string $apiSecret Client API secret.
+     * @param array  $scope     Permission scope requested.
+     *                          See: http://www.dailymotion.com/doc/api/authentication.html#requesting-extended-permissions
+     *                          for a list of available permissions. To requested several scope keys, provide several
+     *                          scopes in the array.
+     * @param array  $info      Information associated to the chosen grant type.
      *
-     * Info Keys:
-     * - redirect_uri: if $type is Dailymotion::GRANT_TYPE_AUTHORIZATION, this key can be provided. If omited,
-     *                 the current URL will be used. Make sure this value have to stay the same before
-     *                 the user is redirect to the authorization page and after the authorization page
-     *                 redirected to this provided URI (the token server will change this).
-     * - username:
-     * - password: if $type is Dailymotion::GRANT_TYPE_PASSWORD, are used to define end-user credentials.
-     *             If those argument as not provided, the DailymotionAuthRequiredException exception will
-     *             be thrown if no valid session is available.
+     * $info keys:
+     * - redirect_uri: If `$type` is `Dailymotion::GRANT_TYPE_AUTHORIZATION`, this key can be provided.
+     *                 If omitted, the current URL will be used. Make sure this value stays the same
+     *                 before the user is redirect to the authorization page and after the authorization
+     *                 page redirects to this URI (the token server will change this).
+     * - username:     If `$type` is `Dailymotion::GRANT_TYPE_PASSWORD`, end-user credentials are required.
+     * - password:     If `$type` is `Dailymotion::GRANT_TYPE_PASSWORD`, end-user credentials are required.
      *
-     * @throws InvalidArgumentException if grant type is not supported or grant info is missing with required
+     * @throws DailymotionAuthRequiredException If no `$info` values are provided and no valid session is available.
+     * @throws InvalidArgumentException         If grant type is not supported or required grant info is missing.
+     * @return Dailymotion `$this`
      */
-    public function setGrantType($type, $apiKey, $apiSecret, Array $scope = null, Array $info = null)
+    public function setGrantType($type, $apiKey, $apiSecret, array $scope = array(), array $info = array())
     {
         if ($type === null)
         {
             $this->grantType = null;
-            $this->grantInfo = null;
-            return;
+            $this->grantInfo = array();
         }
-
-        switch ($type)
+        else
         {
-            case self::GRANT_TYPE_AUTHORIZATION:
-                if (!isset($info['redirect_uri']))
-                {
-                    $info['redirect_uri'] = $this->getCurrentUrl();
-                }
-                break;
-            case self::GRANT_TYPE_CLIENT_CREDENTIALS:
-            case self::GRANT_TYPE_PASSWORD:
-                break;
-            default:
-                throw new InvalidArgumentException('Invalid grant type: ' . $type);
-        }
+            switch ($type)
+            {
+                case self::GRANT_TYPE_AUTHORIZATION:
+                    if (!isset($info['redirect_uri']))
+                    {
+                        $info['redirect_uri'] = $this->getCurrentUrl();
+                    }
+                    break;
 
-        if (!isset($info))
-        {
-            $info = array();
-        }
+                case self::GRANT_TYPE_CLIENT_CREDENTIALS:
+                case self::GRANT_TYPE_PASSWORD:
+                    break;
 
-        if (!isset($apiKey) || !isset($apiSecret))
-        {
-            throw new InvalidArgumentException('Missing API key/secret');
-        }
+                default:
+                    throw new InvalidArgumentException('Invalid grant type: ' . $type);
+            }
+            if (empty($apiKey))
+            {
+                throw new InvalidArgumentException('Missing API key');
+            }
+            elseif (empty($apiSecret))
+            {
+                throw new InvalidArgumentException('Missing API secret');
+            }
+            $info['scope']  = $scope;
+            $info['key']    = (string) $apiKey;
+            $info['secret'] = (string) $apiSecret;
 
-        $this->grantType = $type;
-        if (isset($scope))
-        {
-            $info['scope'] = is_array($scope) ? implode(' ', $scope) : $scope;
+            $this->grantType = (int) $type;
+            $this->grantInfo = $info;
         }
-        $info['key'] = $apiKey;
-        $info['secret'] = $apiSecret;
-        $this->grantInfo = $info;
+        return $this;
     }
 
     /**
      * Get an authorization URL for use with redirects. By default, full page redirect is assumed.
-     * If you are using a generated URL with a window.open() call in Javascript, you can pass in display=popup.
+     * If you are using a generated URL with a `window.open()` call in Javascript, you can pass in
+     * `Dailymotion::DISPLAY_POPUP` for `$display`.
      *
-     * @param $scope Array a list of requested scope (see http://www.dailymotion.com/doc/api/authentication.html#requesting-extended-permissions
-     *                     for a list of available permissions)
-     * @param $display String can be "page" (default, full page), "popup" or "mobile"
+     * @param string $display Can either be `Dailymotion::DISPLAY_PAGE` (default, full page),
+     *                        `Dailymotion::DISPLAY_POPUP` or `Dailymotion::DISPLAY_MOBILE`.
+     * @return string         Authorization URL for use with redirects.
      */
-    public function getAuthorizationUrl($display = 'page')
+    public function getAuthorizationUrl($display = self::DISPLAY_PAGE)
     {
         if ($this->grantType !== self::GRANT_TYPE_AUTHORIZATION)
         {
-            throw new RuntimeException('This method can only be used with TOKEN grant type.');
+            throw new RuntimeException('This method can only be used with `AUTHORIZATION` grant type.');
         }
-
-        return $this->oauthAuthorizeEndpointUrl . '?' . http_build_query(array
-        (
-            'response_type' => 'code',
-            'client_id' => $this->grantInfo['key'],
-            'redirect_uri' => $this->grantInfo['redirect_uri'],
-            'scope' => is_array($scope = $this->grantInfo['scope']) ? implode(' ', $scope) : $scope,
-            'display' => $display,
-        ), null, '&');
+        return $this->oauthAuthorizeEndpointUrl . '?' . http_build_query(
+            array(
+                'response_type' => 'code',
+                'client_id'     => $this->grantInfo['key'],
+                'redirect_uri'  => $this->grantInfo['redirect_uri'],
+                'scope'         => $this->grantInfo['scope'],
+                'display'       => $display,
+            ),
+            null,
+            '&'
+        );
     }
 
     /**
-     * Upload a file on the Dailymotion servers and generate an URL to be used with API methods.
-     *
-     * @param $filePath String a path to the file to upload
-     *
-     * @return String the resulting URL
+     * Upload a file on Dailymotion's servers and generate an URL to be used with API methods.
+     * Caution: This does not create a video on Dailymotion, it only uploads a file to Dailymotion's servers for you to
+     * use as the `url` field of a video object. If your video is already online, you can skip this step and move on to:
+     * ```
+     * Dailymotion::post('/me/videos', array(
+     *   'title'     => 'My video title',
+     *   'channel'   => 'My video channel',
+     *   'tags'      => 'My video tags',
+     *   'url'       => 'URL to my video file',
+     *   'published' => true,
+     * );
+     * ```
+     * @param string $filePath      Path to the file to upload on the local filesystem.
+     * @param string $forceHostname Force a specific Dailymotion server (not recommended).
+     * @return string               URL of the file on Dailymotion's servers.
      */
-    public function uploadFile($filePath, $force = '')
+    public function uploadFile($filePath, $forceHostname = null)
     {
         $result = $this->get('/file/upload');
-        if ($force != '')
+        if (!empty($forceHostname))
         {
-            $result['upload_url'] = preg_replace('@://[^/]+/@', "://$force/", $result['upload_url']);
+            $result['upload_url'] = preg_replace('#://[^/]+/#', "://{$forceHostname}/", $result['upload_url']);
         }
+        // Temporarily remove the timeout for uploads
         $timeout = $this->timeout;
         $this->timeout = null;
-        $result = json_decode($this->httpRequest($result['upload_url'], array('file' => '@' . $filePath)), true);
+
+        // Upload the file to Dailymotion's servers
+        $result = json_decode(
+            $this->httpRequest($result['upload_url'], array('file' => "@{$filePath}")),
+            true
+        );
         $this->timeout = $timeout;
         return $result['url'];
     }
 
     /**
-     * Alias for $api->call("GET $path")
+     * Alias for `Dailymotion::call("GET {$path}", $args)`.
+     * @see Dailymotion::call()
      */
     public function get($path, $args = array())
     {
-        return $this->call('GET ' . $path, $args);
+        return $this->call("GET {$path}", $args);
     }
 
     /**
-     * Alias for $api->call("POST $path")
+     * Alias for `Dailymotion::call("POST {$path}", $args)`.
+     * @see Dailymotion::call()
      */
     public function post($path, $args = array())
     {
-        return $this->call('POST ' . $path, $args);
+        return $this->call("POST {$path}", $args);
     }
 
     /**
-     * Alias for $api->delete("GET $path")
+     * Alias for `Dailymotion::call("DELETE {$path}", $args)`.
+     * @see Dailymotion::call()
      */
     public function delete($path, $args = array())
     {
-        return $this->call('DELETE ' . $path, $args);
+        return $this->call("DELETE {$path}", $args);
     }
 
     /**
-     * Call a remote method.
+     * Call a remote endpoint on the API.
      *
-     * @param $ressource String the method name to call.
-     * @param $args Array an associative array of arguments.
+     * @param string $resource API endpoint to call.
+     * @param array  $args     Associative array of arguments.
      *
-     * @return mixed the method response
+     * @throws DailymotionApiException          If the API itself returned an error.
+     * @throws DailymotionAuthException         If we can't authenticate the request.
+     * @throws DailymotionAuthRequiredException If no authentication info is available.
+     * @throws DailymotionTransportException    If a network error occurs during the request.
      *
-     * @throws DailymotionApiException if API return an error
-     * @throws DailymotionAuthException if can't authenticate the request
-     * @throws DailymotionAuthRequiredException if not authentication info is available
-     * @throws DailymotionTransportException if an error occurs during request.
+     * @return mixed Endpoint call response
      */
-    public function call($method, $args = array())
+    public function call($resource, $args = array())
     {
         $headers = array('Content-Type: application/json');
-        $payload = json_encode(array
-        (
-            'call' => $method,
+        $payload = json_encode(array(
+            'call' => $resource,
             'args' => $args,
         ));
-
-        $status_code = null;
+        $statusCode = null;
         try
         {
-            $result = json_decode($this->oauthRequest($this->apiEndpointUrl, $payload, $this->getAccessToken(), $headers, $status_code), true);
+            $result = json_decode(
+                $this->oauthRequest(
+                    $this->apiEndpointUrl,
+                    $payload,
+                    $this->getAccessToken(),
+                    $headers,
+                    $statusCode
+                ),
+                true
+            );
         }
         catch (DailymotionAuthException $e)
         {
             if ($e->error === 'invalid_token')
             {
                 // Retry by forcing the refresh of the access token
-                $result = json_decode($this->oauthRequest($this->apiEndpointUrl, $payload, $this->getAccessToken(true), $headers, $status_code), true);
+                $result = json_decode(
+                    $this->oauthRequest(
+                        $this->apiEndpointUrl,
+                        $payload,
+                        $this->getAccessToken(true),
+                        $headers,
+                        $statusCode
+                    ),
+                    true
+                );
             }
             else
             {
                 throw $e;
             }
         }
-
-        if (!isset($result))
+        if (empty($result))
         {
-            throw new DailymotionApiException('Invalid API server response.');
+            throw new DailymotionApiException('Invalid API server response');
         }
-        elseif ($status_code !== 200)
+        elseif ($statusCode !== 200)
         {
-            throw new DailymotionApiException('Unknown error: ' . $status_code, $status_code);
+            throw new DailymotionApiException("Unknown error: {$statusCode}", $statusCode);
         }
         elseif (is_array($result) && isset($result['error']))
         {
             $message = isset($result['error']['message']) ? $result['error']['message'] : null;
-            $code = isset($result['error']['code']) ? $result['error']['code'] : null;
+            $code    = isset($result['error']['code'])    ? $result['error']['code']    : null;
+
             if ($code === 403)
             {
                 throw new DailymotionAuthRequiredException($message, $code);
@@ -301,33 +410,34 @@ class Dailymotion
         }
         elseif (!isset($result['result']))
         {
-            throw new DailymotionApiException("Invalid API server response: no `result' key found.");
+            throw new DailymotionApiException("Invalid API server response: no `result` key found.");
         }
-
         return $result['result'];
     }
 
     /**
      * Remove the right for the current API key to access the current user account.
+     * @return Dailymotion `$this`
      */
     public function logout()
     {
-        $this->call('auth.logout');
-        $this->setSession(null);
+        $this->call('/logout');
+        $this->clearSession();
+        return $this;
     }
 
     /**
-     * Get the access token. If not access token is available, try to obtain one using refresh token
-     * or code (depending on the state of the OAuth transaction). If no access token is available
-     * and no refresh token or code can be found, an exception is thrown.
+     * Get the current access token. If no access token is available, try to obtain one using the refresh token
+     * or code (depending on the state of the OAuth transaction). If no access token is available and no refresh
+     * token or code can be found, an exception is thrown.
      *
-     * @param Boolean $forceRefresh to force the refresh of the access token, event if not expired
+     * @param boolean $forceRefresh Force the refresh of the access token, event if not expired.
      *
-     * @return String access token or NULL if not grant type defined (un-authen API calls)
+     * @throws DailymotionAuthRequiredException If we can't get an access token, client need to request end-user authorization.
+     * @throws DailymotionAuthRefusedException  If the user refused the authorization.
+     * @throws DailymotionAuthException         If an OAuth error occurred.
      *
-     * @throws DailymotionAuthRequiredException can't get access token, client need to request end-user authorization
-     * @throws DailymotionAuthRefusedException the user refused the authorization
-     * @throws DailymotionAuthException an oauth error occurred
+     * @return string Access token or `null` if no grant type defined (un-authen API calls).
      */
     protected function getAccessToken($forceRefresh = false)
     {
@@ -336,65 +446,63 @@ class Dailymotion
             // No grant type defined, the request won't be authenticated
             return null;
         }
-
         $session = $this->getSession();
 
         // Check if session is present and if it was created for the same grant type
-        // i.e: if the grant type to create the session was AUTHORIZATION and the current
-        //      grant type is CLIENT_CREDENTIALS, we don't want to call method on the behalf another user
-        if (isset($session) && isset($session['grant_type']) && $session['grant_type'] === $this->grantType)
+        // i.e: if the grant type to create the session was `AUTHORIZATION` and the current grant type is
+        // `CLIENT_CREDENTIALS`, we don't want to call the API on behalf of another user.
+        if (!empty($session) && isset($session['grant_type']) && ($session['grant_type'] === $this->grantType))
         {
-            if (isset($session['access_token']) && !$forceRefresh)
+            if (!$forceRefresh && isset($session['access_token']))
             {
-                if (!isset($session['expires']) || time() < $session['expires'])
+                if (!isset($session['expires']) || (time() < $session['expires']))
                 {
                     return $session['access_token'];
                 }
                 // else: Token expired
             }
-
             // No valid access token found, try to refresh it
             if (isset($session['refresh_token']))
             {
-                $origGrantType = $session['grant_type'];
-                $session = $this->oauthTokenRequest(array
-                (
-                    'grant_type' => 'refresh_token',
-                    'client_id' => $this->grantInfo['key'],
+                $grantType = $session['grant_type'];
+                $session = $this->oauthTokenRequest(array(
+                    'grant_type'    => 'refresh_token',
+                    'client_id'     => $this->grantInfo['key'],
                     'client_secret' => $this->grantInfo['secret'],
-                    'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
+                    'scope'         => implode(chr(32), $this->grantInfo['scope']),
                     'refresh_token' => $session['refresh_token'],
                 ));
-                $session['grant_type'] = $origGrantType;
+                $session['grant_type'] = $grantType;
                 $this->setSession($session);
                 return $session['access_token'];
             }
         }
-
         try
         {
             if ($this->grantType === self::GRANT_TYPE_AUTHORIZATION)
             {
-                if (isset($_GET['code']))
+                $code  = filter_input(INPUT_GET, 'code');
+                $error = filter_input(INPUT_GET, 'error');
+
+                if (!empty($code))
                 {
                     // We've been called back by authorization server
-                    $session = $this->oauthTokenRequest(array
-                    (
-                        'grant_type' => 'authorization_code',
-                        'client_id' => $this->grantInfo['key'],
+                    $session = $this->oauthTokenRequest(array(
+                        'grant_type'    => 'authorization_code',
+                        'client_id'     => $this->grantInfo['key'],
                         'client_secret' => $this->grantInfo['secret'],
-                        'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
-                        'code' => $_GET['code'],
-                        'redirect_uri' => $this->grantInfo['redirect_uri'],
+                        'scope'         => implode(chr(32), $this->grantInfo['scope']),
+                        'redirect_uri'  => $this->grantInfo['redirect_uri'],
+                        'code'          => $code,
                     ));
                     $session['grant_type'] = $this->grantType;
                     $this->setSession($session);
                     return $session['access_token'];
                 }
-                elseif (isset($_GET['error']))
+                elseif (!empty($error))
                 {
-                    $message = isset($_GET['error_description']) ? $_GET['error_description'] : null;
-                    if ($_GET['error'] === 'access_denied')
+                    $message = filter_input(INPUT_GET, 'error_description');
+                    if ($error === 'access_denied')
                     {
                         $e = new DailymotionAuthRefusedException($message);
                     }
@@ -402,7 +510,7 @@ class Dailymotion
                     {
                         $e = new DailymotionAuthException($message);
                     }
-                    $e->error = $_GET['error'];
+                    $e->error = $error;
                     throw $e;
                 }
                 else
@@ -413,12 +521,11 @@ class Dailymotion
             }
             elseif ($this->grantType === self::GRANT_TYPE_CLIENT_CREDENTIALS)
             {
-                $session = $this->oauthTokenRequest(array
-                (
-                    'grant_type' => 'client_credentials',
-                    'client_id' => $this->grantInfo['key'],
+                $session = $this->oauthTokenRequest(array(
+                    'grant_type'    => 'client_credentials',
+                    'client_id'     => $this->grantInfo['key'],
                     'client_secret' => $this->grantInfo['secret'],
-                    'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
+                    'scope'         => implode(chr(32), $this->grantInfo['scope']),
                 ));
                 $session['grant_type'] = $this->grantType;
                 $this->setSession($session);
@@ -431,14 +538,13 @@ class Dailymotion
                     // Ask the client to request end-user credentials
                     throw new DailymotionAuthRequiredException();
                 }
-                $session = $this->oauthTokenRequest(array
-                (
-                    'grant_type' => 'password',
-                    'client_id' => $this->grantInfo['key'],
+                $session = $this->oauthTokenRequest(array(
+                    'grant_type'    => 'password',
+                    'client_id'     => $this->grantInfo['key'],
                     'client_secret' => $this->grantInfo['secret'],
-                    'scope' => isset($this->grantInfo['scope']) ? $this->grantInfo['scope'] : null,
-                    'username' => $this->grantInfo['username'],
-                    'password' => $this->grantInfo['password'],
+                    'scope'         => implode(chr(32), $this->grantInfo['scope']),
+                    'username'      => $this->grantInfo['username'],
+                    'password'      => $this->grantInfo['password'],
                 ));
                 $session['grant_type'] = $this->grantType;
                 $this->setSession($session);
@@ -448,65 +554,84 @@ class Dailymotion
         catch (DailymotionAuthException $e)
         {
             // clear session on error
-            $this->setSession(null);
+            $this->clearSession();
             throw $e;
         }
     }
 
     /**
-     * Set the session and store it if storeSession is true.
+     * Set the session and store it if `$storeSession` is true.
      *
-     * @param $session Array the session to set
+     * @param $session array the session to set
+     * @return Dailymotion `$this`
      */
-    public function setSession(Array $session = null)
+    public function setSession(array $session = array())
     {
         $this->session = $session;
         if ($this->storeSession)
         {
             $this->storeSession($session);
         }
+        return $this;
     }
 
     /**
      * Get the session if any.
-     *
-     * @return Array the current session or null
+     * @return array Current session or an empty array if none found.
      */
     public function getSession()
     {
-        if (!isset($this->session))
+        if (empty($this->session))
         {
             $this->session = $this->readSession();
         }
-
         return $this->session;
     }
 
     /**
-     * Read the session from the session store. Default storage is Cookie, subclass can implement another
-     * storage type if needed. Info stored in the session are useless without api the secret. Storing
-     * those info on the client should thus be safe unless the API secret is kept... secret.
-     *
-     * @return Array the stored session or null if none found
+     * Clear the currently stored session.
+     * @return Dailymotion `$this`
      */
-    protected function readSession()
+    public function clearSession()
     {
-        $cookieName = 'dms_' . $this->grantInfo['key'];
-        if (isset($_COOKIE[$cookieName]))
-        {
-            parse_str(trim(get_magic_quotes_gpc() ? stripslashes($_COOKIE[$cookieName]): $_COOKIE[$cookieName], '"'), $session);
-            return $session;
-        }
+        $this->session = array();
+        return $this;
     }
 
     /**
-     * Store the given session to the session store. Default storage is Cookie, subclass can implement another
-     * storage type if needed. Info stored in the session are useless without api the secret. Storing
-     * those info on the client should thus be safe unless the API secret is kept... secret.
+     * Read the session from the session store.
+     * Default storage is cookie, subclass can implement another storage type if needed.
+     * Information stored in the session are useless without the API secret. Storing these information on the client
+     * should thus be safe as long as the API secret is kept... secret.
      *
-     * @param $session Array the session to store, if null passed, the session is removed from the session store
+     * @return array Stored session or an empty array if none found.
      */
-    protected function storeSession(Array $session = null)
+    protected function readSession()
+    {
+        $session    = array();
+        $cookieName = sprintf(self::SESSION_COOKIE, $this->grantInfo['key']);
+        $cookieValue = filter_input(INPUT_COOKIE, $cookieName);
+
+        if (!empty($cookieValue))
+        {
+            parse_str(
+                trim((get_magic_quotes_gpc() ? stripslashes($cookieValue) : $cookieValue), '"'),
+                $session
+            );
+        }
+        return $session;
+    }
+
+    /**
+     * Store the given session to the session store.
+     * Default storage is cookie, subclass can implement another storage type if needed.
+     * Information stored in the session are useless without the API secret. Storing these information on the client
+     * should thus be safe as long as the API secret is kept... secret.
+     *
+     * @param array $session Session to store, if nothing is passed, the current session is removed from the session store.
+     * @return Dailymotion `$this`
+     */
+    protected function storeSession(array $session = array())
     {
         if (headers_sent())
         {
@@ -514,45 +639,52 @@ class Dailymotion
             {
                 error_log('Could not set session in cookie: headers already sent.');
             }
-            return;
+            return $this;
         }
-
-        $cookieName = 'dms_' . $this->grantInfo['key'];
-        if (isset($session))
+        $cookieName = sprintf(self::SESSION_COOKIE, $this->grantInfo['key']);
+        if (!empty($session))
         {
-            $value = '"' . http_build_query($session, null, '&') . '"';
+            $value   = '"' . http_build_query($session, null, '&') . '"';
             $expires = time() + $this->cookieLifeTime;
         }
         else
         {
-            if (!isset($_COOKIE[$cookieName]))
+            $cookieValue = filter_input(INPUT_COOKIE, $cookieName);
+            if (empty($cookieValue))
             {
                 // No need to remove an unexisting cookie
-                return;
+                return $this;
             }
-            $value = 'deleted';
+            $value   = 'deleted';
             $expires = time() - 3600;
         }
-
         setcookie($cookieName, $value, $expires, '/', $this->cookieDomain);
+        return $this;
     }
 
     /**
-     * Perform a request to a token server complient with the OAuth 2.0 (draft 10) specification.
+     * Perform a request to a token server complient with the OAuth 2.0 specification.
      *
-     * @param $args Array arguments to send to the token server
-     *
-     * @return Array a configured session
-     *
-     * @throws DailymotionAuthException in case of token server error or invalid response
+     * @param array $args Arguments to send to the token server.
+     * @throws DailymotionAuthException If the token server sends an error or invalid response.
+     * @return array Cconfigured session.
      */
-    protected function oauthTokenRequest(Array $args)
+    protected function oauthTokenRequest(array $args)
     {
-        $result = json_decode($response = $this->httpRequest($this->oauthTokenEndpointUrl, $args, null, $status_code, $response_headers, true), true);
-
-        if (!isset($result))
+        $result = json_decode(
+            $response = $this->httpRequest(
+                $this->oauthTokenEndpointUrl,
+                $args,
+                null,
+                $statusCode = null,
+                $responseHeaders = array(),
+                true
+            ),
+            true
+        );
+        if (empty($result))
         {
-            throw new DailymotionAuthException("Invalid token server response: $response.");
+            throw new DailymotionAuthException("Invalid token server response: {$response}");
         }
         elseif (isset($result['error']))
         {
@@ -563,202 +695,274 @@ class Dailymotion
         }
         elseif (isset($result['access_token']))
         {
-            return array
-            (
-                'access_token' => $result['access_token'],
-                'expires' => time() + $result['expires_in'],
+            return array(
+                'access_token'  => $result['access_token'],
+                'expires'       => time() + $result['expires_in'],
                 'refresh_token' => isset($result['refresh_token']) ? $result['refresh_token'] : null,
-                'scope' => isset($result['scope']) ? explode(' ', $result['scope']) : array(),
+                'scope'         => isset($result['scope']) ? explode(chr(32), $result['scope']) : array(),
             );
         }
         else
         {
-            throw new DailymotionAuthException('No access token found in the token server response.');
+            throw new DailymotionAuthException('No access token found in the token server response');
         }
     }
 
     /**
-     * Perform an OAuth 2.0 (draft 10) authenticated request.
+     * Perform an OAuth 2.0 authenticated request.
      *
-     * @param String $url the URL to perform the HTTP request to.
-     * @param String $payload the encoded method request to POST.
-     * @param String oauth access token to authenticate the request with.
-     * @param Array list of headers to send with the request (format array('Header-Name: header value')).
-     * @param Integer $status_code an reference variable to store the response status code in.
-     * @param Array a reference variable to store the response headers.
+     * @param string $url the         URL to perform the HTTP request to.
+     * @param string $payload         Encoded method request to POST.
+     * @param string $accessToken     OAuth access token to authenticate the request with.
+     * @param array  $headers         List of headers to send with the request (format `array('Header-Name: header value')`).
+     * @param int   &$statusCode      Reference variable to store the response status code.
+     * @param array &$responseHeaders Reference variable to store the response headers.
      *
-     * @return String the response body
+     * @throws DailymotionAuthException      If an OAuth error occurs.
+     * @throws DailymotionTransportException If a network error occurs during the request.
      *
-     * @throws DailymotionAuthException if an oauth error occurs
-     * @throws DailymotionTransportException if an error occurs during request.
+     * @return string Response body.
      */
-    protected function oauthRequest($url, $payload, $accessToken = null, $headers = array(), &$status_code = null, &$response_headers = null)
+    protected function oauthRequest($url, $payload, $accessToken = null, $headers = array(), &$statusCode = null, &$responseHeaders = array())
     {
         if ($accessToken !== null)
         {
-            $headers[] = 'Authorization: OAuth2 ' . $accessToken;
+            $headers[] = "Authorization: Bearer {$accessToken}";
         }
-        $result = $this->httpRequest($url, $payload, $headers, $status_code, $response_headers);
-
-        switch ($status_code)
+        $result = $this->httpRequest(
+            $url,
+            $payload,
+            $headers,
+            $statusCode,
+            $responseHeaders
+        );
+        switch ($statusCode)
         {
             case 401: // Invalid or expired token
             case 400: // Invalid request
             case 403: // Insufficient scope
-                $error = null;
+                $error   = null;
                 $message = null;
-                if (preg_match('/error="(.*?)"(?:, error_description="(.*?)")?/', $response_headers['www-authenticate'], $match))
+                $match   = array();
+
+                if (preg_match('/error="(.*?)"(?:, error_description="(.*?)")?/', $responseHeaders['www-authenticate'], $match))
                 {
-                    $error = $match[1];
+                    $error   = $match[1];
                     $message = $match[2];
                 }
-
                 $e = new DailymotionAuthException($message);
                 $e->error = $error;
                 throw $e;
         }
-
         return $result;
     }
 
     /**
      * Perform an HTTP request by posting the given payload and returning the result.
-     * Override this method if you don't want to use curl.
+     * Override this method if you don't want to use cURL.
      *
-     * @param String $url the URL to perform the HTTP request to.
-     * @param mixed $payload the data to POST. If it's an associative array, it will be urlencoded and the
-     *              Content-Type header will automatically set to multipart/form-data. If it's a string
-     *              make sure you set the correct Content-Type.
-     * @param Array $headers list of headers to send with the request (format array('Header-Name: header value'))
-     * @param Integer $status_code an reference variable to store the response status code in
-     * @param Array a reference variable to store the response headers
+     * @param string  $url             URL to perform the HTTP request to.
+     * @param mixed   $payload         Data to POST. If it's an associative array and `$encodePayload` is set to true,
+     *                                 it will be url-encoded and the `Content-Type` header will automatically be set
+     *                                 to `multipart/form-data`. If it's a string make sure you set the correct
+     *                                 `Content-Type` header yourself.
+     * @param array   $headers         List of headers to send with the request (format `array('Header-Name: header value')`).
+     * @param int    &$statusCode      Reference variable to store the response status code.
+     * @param array  &$responseHeaders Reference variable to store the response headers.
+     * @param boolean $encodePayload   Whether or not to encode the payload if it's an associative array.
      *
-     * @return String the response body
-     *
-     * @throws DailymotionTransportException if an error occurs during request.
+     * @throws DailymotionTransportException If a network error occurs during the request.
+     * @return string Response body
      */
-    protected function httpRequest($url, $payload, $headers = null, &$status_code = null, &$response_headers = null, $encode_payload=false)
+    protected function httpRequest($url, $payload, $headers = null, &$statusCode = null, &$responseHeaders = array(), $encodePayload = false)
     {
-        $payload = (is_array($payload) && true === $encode_payload) ? http_build_query($payload) : $payload;
+        $payload = (is_array($payload) && (true === $encodePayload))
+            ? http_build_query($payload)
+            : $payload;
 
-        $ch = curl_init();
-
-        // Force removal of the Exept: 100-continue header automatically added by curl
+        // Force removal of the Expect: 100-continue header automatically added by cURL
         $headers[] = 'Expect:';
 
-        curl_setopt_array
-        (
-            $ch, array
-            (
-                CURLOPT_CONNECTTIMEOUT => $this->connectionTimeout,
-                CURLOPT_TIMEOUT => $this->timeout,
-                CURLOPT_PROXY => $this->proxy,
-                CURLOPT_SSLVERSION => 3, // See http://bit.ly/I1OYCn
-                CURLOPT_USERAGENT => sprintf('Dailymotion-PHP/%s (PHP %s; %s)', self::VERSION, PHP_VERSION, php_sapi_name()),
-                CURLOPT_HEADER => true,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_URL => $url,
-                CURLOPT_HTTPHEADER => $headers,
-                CURLOPT_POSTFIELDS => $payload,
-                CURLOPT_NOPROGRESS => !($this->debug && is_array($payload) && array_key_exists('file', $payload)),
-            )
+        // cURL options
+        $options = array(
+            CURLOPT_CONNECTTIMEOUT => $this->connectionTimeout,
+            CURLOPT_TIMEOUT        => $this->timeout,
+            CURLOPT_PROXY          => $this->proxy,
+            CURLOPT_PROXYUSERPWD   => $this->proxyCredentials,
+            CURLOPT_SSLVERSION     => 3, // See http://bit.ly/I1OYCn
+            CURLOPT_USERAGENT      => sprintf('Dailymotion-PHP/%s (PHP %s; %s)', self::VERSION, PHP_VERSION, php_sapi_name()),
+            CURLOPT_HEADER         => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_URL            => $url,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_NOPROGRESS     => !($this->debug && is_array($payload) && array_key_exists('file', $payload)),
         );
-
-        if ($this->debug)
+        // If the current server supports it, we follow redirects
+        if (!filter_var(ini_get('open_basedir'), FILTER_VALIDATE_BOOLEAN) && !filter_var(ini_get('safe_mode'), FILTER_VALIDATE_BOOLEAN))
         {
-            print ">>> [$url] >>>\n";
-            $message = print_r(($json = json_decode($payload)) == NULL ? $payload : $json, true);
-            print $message . (strpos($message, "\n") ? '' : "\n");
+            $options[CURLOPT_FOLLOWLOCATION] = true;
+            $options[CURLOPT_MAXREDIRS]      = self::CURLOPT_MAXREDIRS;
         }
+        $this->debugRequest($url, $payload, $headers);
 
+        // Execute the cURL request
+        $ch = curl_init();
+        curl_setopt_array($ch, $options);
         $response = curl_exec($ch);
 
-        if (curl_errno($ch) == 60) // CURLE_SSL_CACERT
+        // CURLE_SSL_CACERT error
+        if (curl_errno($ch) == 60)
         {
             error_log('Invalid or no certificate authority found, using bundled information');
-            curl_setopt($ch, CURLOPT_CAINFO, dirname(__FILE__) . '/dm_ca_chain_bundle.crt');
+            curl_setopt($ch, CURLOPT_CAINFO, __DIR__ . '/dm_ca_chain_bundle.crt');
             $response = curl_exec($ch);
         }
-
+        // Invalid empty response
         if ($response === false)
         {
             $e = new DailymotionTransportException(curl_error($ch), curl_errno($ch));
             curl_close($ch);
             throw $e;
         }
-
-        $status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $info = curl_getinfo($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        $headers = array();
-        $headers_str = substr($response, 0, $info['header_size']);
-        strtok($headers_str, "\r\n"); // skip status code
+        list($responseHeadersString, $payload) = explode("\r\n\r\n", $response, 2);
+        strtok($responseHeadersString, "\r\n"); // skip status code
+
         while(($name = trim(strtok(":"))) && ($value = trim(strtok("\r\n"))))
         {
-            $headers[strtolower($name)] = (isset($headers[$name]) ? $headers[$name] . '; ' : '') . $value;
+            $responseHeaders[strtolower($name)] = (isset($responseHeaders[$name])
+                ? $responseHeaders[$name] . '; '
+                : null) . $value;
         }
-        $response_headers = $headers;
-
-        // Try not rely on header_size if Content-Length header is present
-        $body_offset = (isset($headers['content-length']) && ($length = $headers['content-length']) && is_numeric($length)) ? -$length : $info['header_size'];
-        $payload = substr($response, $body_offset);
-
-        if ($this->debug)
-        {
-            print "<<< [$url] <<<\n";
-            print_r(($json = json_decode($payload)) == NULL ? $payload : $json);
-            print "\n";
-        }
-
+        $this->debugResponse($url, $payload, $responseHeaders);
         return $payload;
     }
 
     /**
      * Returns the current URL, stripping if of known OAuth parameters that should not persist.
-     *
-     * @return String the current URL
+     * @return string Current URL.
      */
     protected function getCurrentUrl()
     {
-        $secure = false;
-        if (isset($_SERVER['HTTPS']))
-        {
-            $secure = strtolower($_SERVER['HTTPS']) === 'on' || $_SERVER['HTTPS'] == 1;
-        }
-        elseif (isset($_SERVER['HTTP_SSL_HTTPS']))
-        {
-            $secure = strtolower($_SERVER['HTTP_SSL_HTTPS']) === 'on' || $_SERVER['HTTP_SSL_HTTPS'] == 1;
-        }
-        elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']))
-        {
-            $secure = strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https';
-        }
+        $values = filter_input_array(
+            INPUT_SERVER,
+            array(
+                'HTTPS'                  => FILTER_VALIDATE_BOOLEAN,
+                'HTTP_SSL_HTTPS'         => FILTER_VALIDATE_BOOLEAN,
+                'HTTP_X_FORWARDED_PROTO' => FILTER_SANITIZE_STRING,
+                'HTTP_HOST'              => FILTER_SANITIZE_STRING,
+                'REQUEST_URI'            => FILTER_SANITIZE_STRING,
+            )
+        );
+        $secure = ($values['HTTPS'] || $values['HTTP_SSL_HTTPS'] || (strtolower($values['HTTP_X_FORWARDED_PROTO']) === 'https'));
         $scheme = $secure ? 'https://' : 'http://';
-        $currentUrl = $scheme . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 
-        $parts = parse_url($currentUrl);
+        $currentUrl = $scheme . $values['HTTP_HOST'] . $values['REQUEST_URI'];
+        $parts      = parse_url($currentUrl);
 
-        // Remove oauth callback params
-        $query = '';
-        if ($parts['query'] !== '')
+        // Remove OAuth callback params
+        $query = null;
+        if (!empty($parts['query']))
         {
-            parse_str($parts['query'], $params);
+            $parameters = array();
+            parse_str($parts['query'], $parameters);
+
             foreach(self::$DROP_QUERY_PARAMS as $name)
             {
-                unset($params[$name]);
+                unset($parameters[$name]);
             }
-            if (count($params) > 0)
+            if (count($parameters) > 0)
             {
-                $query = '?' . http_build_query($params, null, '&');
+                $query = '?' . http_build_query($parameters, null, '&');
             }
         }
-
         // Use port if non default
-        $port = isset($parts['port']) && ($secure ? $parts['port'] !== 80 : $parts['port'] !== 443) ? ':' . $parts['port'] : '';
+        $port = (!empty($parts['port']) && (($secure) ? ($parts['port'] !== 80) : ($parts['port'] !== 443)))
+            ? ":{$parts['port']}"
+            : null;
 
-        // rebuild
+        // Rebuild
         return $scheme . $parts['host'] . $port . $parts['path'] . $query;
+    }
+
+    /**
+     * Debug an HTTP request on the current output.
+     *
+     * @param string $url     URL of the request.
+     * @param mixed  $payload Payload sent with the request.
+     * @param array  $headers Headers sent with the request.
+     */
+    protected function debugRequest($url, $payload, array $headers)
+    {
+        if ($this->debug)
+        {
+            // debug for xterm-compliant cli
+            if (php_sapi_name() === 'cli')
+            {
+                echo PHP_EOL;
+                echo "\e[1;33m>>>\e[0;33m [{$url}] \e[1;33m>>>\e[00m" . PHP_EOL;
+
+                foreach ($headers as $value)
+                {
+                    $matches = array();
+                    preg_match('#^(?P<key>[^:\s]+)\s*:\s*(?P<value>.*)$#S', $value, $matches);
+                    echo "\e[1;34m{$matches['key']}: \e[0;34m{$matches['value']}\e[00m" . PHP_EOL;
+                }
+                echo PHP_EOL;
+                echo (is_array($payload))
+                    ? json_encode($payload, JSON_PRETTY_PRINT)
+                    : ((is_null($json = json_decode($payload)))
+                        ? $payload :
+                        json_encode($json, JSON_PRETTY_PRINT)
+                    );
+
+                echo PHP_EOL;
+            }
+            // debug for the rest
+            else
+            {
+                echo ">>> [{$url}] >>>" . PHP_EOL;
+                $message = print_r(is_null($json = json_decode($payload)) ? $payload : $json, true);
+                echo $message . (strpos($message, PHP_EOL) ? null : PHP_EOL);
+            }
+        }
+    }
+
+    /**
+     * Debug an HTTP response on the current output.
+     *
+     * @param string $url     URL of the request.
+     * @param mixed  $payload Payload sent with the request.
+     * @param array  $headers Headers sent with the request.
+     */
+    protected function debugResponse($url, $payload, array $headers)
+    {
+        if ($this->debug)
+        {
+            // debug for xterm-compliant cli
+            if (php_sapi_name() === 'cli')
+            {
+                echo PHP_EOL;
+                echo "\e[1;33m<<<\e[0;33m [{$url}] \e[1;33m<<<\e[00m" . PHP_EOL;
+                foreach ($headers as $key => $value)
+                {
+                    echo "\e[1;34m{$key}: \e[0;34m{$value}\e[00m" . PHP_EOL;
+                }
+                echo PHP_EOL;
+                echo ($json = json_decode($payload, true)) == NULL ? $payload : json_encode($json, JSON_PRETTY_PRINT);
+                echo PHP_EOL;
+            }
+            // debug for the rest
+            else
+            {
+                echo "<<< [{$url}] <<<" . PHP_EOL;
+                print_r(($json = json_decode($payload)) == NULL ? $payload : $json);
+                echo PHP_EOL;
+            }
+        }
     }
 }
 
