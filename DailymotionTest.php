@@ -25,6 +25,7 @@ if (!$apiKey) $apiKey = readline('API Key: ');
 if (!$apiSecret) $apiSecret = readline('API Secret: ');
 if (!$testUser) $testUser = readline('Test User: ');
 if (!$testPassword) $testPassword = readline('Test User Password: ');
+if (!$testVideoFile) $testVideoFile = readline('Test Video File: ');
 
 require_once 'Dailymotion.php';
 
@@ -37,23 +38,30 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
 
     protected function setUp()
     {
-        global $apiKey, $apiSecret, $proxy, $apiEndpointUrl, $oauthAuthorizeEndpointUrl, $oauthTokenEndpointUrl;
+        global $apiKey,
+               $apiSecret,
+               $proxy,
+               $apiEndpointUrl,
+               $oauthAuthorizeEndpointUrl,
+               $oauthTokenEndpointUrl;
+
+        $this->api = new Dailymotion();
         $this->apiKey = $apiKey;
         $this->apiSecret = $apiSecret;
-        $this->api = new Dailymotion();
-        if (isset($proxy))
+
+        if (!empty($proxy))
         {
             $this->api->proxy = $proxy;
         }
-        if (isset($apiEndpointUrl))
+        if (!empty($apiEndpointUrl))
         {
             $this->api->apiEndpointUrl = $apiEndpointUrl;
         }
-        if (isset($oauthAuthorizeEndpointUrl))
+        if (!empty($oauthAuthorizeEndpointUrl))
         {
             $this->api->oauthAuthorizeEndpointUrl = $oauthAuthorizeEndpointUrl;
         }
-        if (isset($oauthTokenEndpointUrl))
+        if (!empty($oauthTokenEndpointUrl))
         {
             $this->api->oauthTokenEndpointUrl = $oauthTokenEndpointUrl;
         }
@@ -61,63 +69,12 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
 
     public function testNoGrantTypePublicData()
     {
-        $result = $this->api->call('test.echo', array('message' => 'test'));
-    }
+        $message = 'test';
+        $result = $this->api->get('/echo', array('message' => $message));
 
-    /**
-     * @expectedException DailymotionAuthRequiredException
-     */
-    public function testNoGrantTypeAuthRequired()
-    {
-        $result = $this->api->call('video.subscriptions');
-    }
-
-    public function testGrantTypeClientCredentials()
-    {
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $this->apiKey, $this->apiSecret);
-        $result = $this->api->call('auth.info');
         $this->assertInternalType('array', $result);
-        $this->assertArrayHasKey('username', $result);
-    }
-
-    public function testGrantTypePassword()
-    {
-        global $testUser, $testPassword;
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret, null, array('username' => $testUser, 'password' => $testPassword));
-        $result = $this->api->call('auth.info');
-        $this->assertInternalType('array', $result);
-        $this->assertArrayHasKey('username', $result);
-
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret);
-        $result = $this->api->call('auth.info');
-        $this->assertInternalType('array', $result);
-        $this->assertArrayHasKey('username', $result);
-        $this->assertEquals($result['username'], $testUser);
-    }
-
-    public function testGrantTypeToken()
-    {
-    }
-
-    /**
-     * @expectedException DailymotionAuthRequiredException
-     */
-    public function testGrantTypeChangeFromSessionRequired()
-    {
-        global $testUser, $testPassword;
-        try
-        {
-            $this->api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $this->apiKey, $this->apiSecret);
-            $result = $this->api->call('auth.info');
-            $this->assertInternalType('array', $result);
-        }
-        catch (DailymotionAuthRequiredException $e)
-        {
-            // Test must not succeed if this call throws the exception
-        }
-
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret);
-        $this->api->call('auth.info'); // should throw auth required exception
+        $this->assertArrayHasKey('message', $result);
+        $this->assertContains($message, $result);
     }
 
     /**
@@ -125,19 +82,100 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
      */
     public function testError()
     {
-        $this->api->call('test.echo');
+        $this->api->get('/echo');
+    }
+
+    /**
+     * @expectedException DailymotionAuthRequiredException
+     */
+    public function testNoGrantTypeAuthRequired()
+    {
+        $result = $this->api->get('/videos/subscriptions');
+    }
+
+    /**
+     * @expectedException DailymotionApiException
+     */
+    public function testNoGrantTypeAuthRequiredMe()
+    {
+        $result = $this->api->get('/me');
+    }
+
+    public function testGrantTypeClientCredentials()
+    {
+        $this->api->setGrantType(
+            Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS,
+            $this->apiKey, $this->apiSecret
+        );
+        $result = $this->api->get('/auth');
+        $this->assertInternalType('array', $result);
+        $this->assertArrayHasKey('username', $result);
+    }
+
+    public function testGrantTypePassword()
+    {
+        global $testUser,
+               $testPassword;
+
+        $this->api->setGrantType(
+            Dailymotion::GRANT_TYPE_PASSWORD,
+            $this->apiKey, $this->apiSecret, array(),
+            array('username' => $testUser, 'password' => $testPassword)
+        );
+        $result = $this->api->get('/auth');
+
+        $this->assertInternalType('array', $result);
+        $this->assertArrayHasKey('username', $result);
+        $this->assertEquals($result['username'], $testUser);
+    }
+
+    /**
+     * @expectedException DailymotionAuthRequiredException
+     */
+    public function testGrantTypeChangeFromSessionRequired()
+    {
+        try
+        {
+            $this->api->setGrantType(
+                Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS,
+                $this->apiKey, $this->apiSecret
+            );
+            $result = $this->api->get('/auth');
+            $this->assertInternalType('array', $result);
+        }
+        catch (DailymotionAuthRequiredException $e)
+        {
+            // Test must not succeed if this call throws the exception
+        }
+        $this->api->setGrantType(
+            Dailymotion::GRANT_TYPE_PASSWORD,
+            $this->apiKey, $this->apiSecret
+        );
+        $this->api->get('/auth'); // should throw auth required exception
     }
 
     public function testVideoUpload()
     {
-        global $testUser, $testPassword, $testVideoFile;
-        $this->api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $this->apiKey, $this->apiSecret, array('write','delete'), array('username' => $testUser, 'password' => $testPassword));
+        global $testUser,
+               $testPassword,
+               $testVideoFile;
+
+        $this->api->setGrantType(
+            Dailymotion::GRANT_TYPE_PASSWORD,
+            $this->apiKey,
+            $this->apiSecret,
+            array('read', 'write', 'delete', 'manage_videos'),
+            array('username' => $testUser, 'password' => $testPassword)
+        );
         $url = $this->api->uploadFile($testVideoFile);
         $this->assertInternalType('string', $url);
         $this->assertContains('http://', $url);
-        $result = $this->api->call('video.create', array('url' => $url));
+
+        $result = $this->api->post('/me/videos', array('url' => $url));
         $this->assertArrayHasKey('id', $result);
-        $this->api->call('video.delete', array('id' => $result['id']));
+
+        sleep(2);
+        $result = $this->api->delete("/video/{$result['id']}");
+        $this->assertInternalType('array', $result);
     }
 }
-
