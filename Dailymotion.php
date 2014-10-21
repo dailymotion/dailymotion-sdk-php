@@ -302,13 +302,15 @@ class Dailymotion
      *   'published' => true,
      * );
      * ```
-     * @param string $filePath      Path to the file to upload on the local filesystem.
-     * @param string $forceHostname Force a specific Dailymotion server (not recommended).
-     * @return string               URL of the file on Dailymotion's servers.
+     * @param string  $filePath      Path to the file to upload on the local filesystem.
+     * @param string  $forceHostname Force a specific Dailymotion server (not recommended).
+     * @param boolean &$progressUrl  If this variable is given, it will include the progress URL in it.
+     * @return string                URL of the file on Dailymotion's servers.
      */
-    public function uploadFile($filePath, $forceHostname = null)
+    public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null)
     {
         $result = $this->get('/file/upload');
+        $progressUrl = $result['progress_url'];
         if (!empty($forceHostname))
         {
             $result['upload_url'] = preg_replace('#://[^/]+/#', "://{$forceHostname}/", $result['upload_url']);
