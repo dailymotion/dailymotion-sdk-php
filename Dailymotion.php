@@ -261,7 +261,7 @@ class Dailymotion
                 'response_type' => 'code',
                 'client_id'     => $this->grantInfo['key'],
                 'redirect_uri'  => $this->grantInfo['redirect_uri'],
-                'scope'         => $this->grantInfo['scope'],
+                'scope'         => implode(chr(32), $this->grantInfo['scope']),
                 'display'       => $display,
             ),
             null,
