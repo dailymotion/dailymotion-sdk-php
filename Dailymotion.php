@@ -179,7 +179,7 @@ class Dailymotion
      * @param string $apiKey    Client API key.
      * @param string $apiSecret Client API secret.
      * @param array  $scope     Permission scope requested.
-     *                          See: http://www.dailymotion.com/doc/api/authentication.html#requesting-extended-permissions
+     *                          See: http://developer.dailymotion.com/documentation#extended-oauth-permissions
      *                          for a list of available permissions. To requested several scope keys, provide several
      *                          scopes in the array.
      * @param array  $info      Information associated to the chosen grant type.
@@ -691,13 +691,15 @@ class Dailymotion
      */
     protected function oauthTokenRequest(array $args)
     {
+        $statusCode = null;
+        $responseHeaders = array();
         $result = json_decode(
             $response = $this->httpRequest(
                 $this->oauthTokenEndpointUrl,
                 $args,
                 null,
-                $statusCode = null,
-                $responseHeaders = array(),
+                $statusCode,
+                $responseHeaders,
                 true
             ),
             true
