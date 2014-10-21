@@ -475,7 +475,7 @@ class Dailymotion
         // Check if session is present and if it was created for the same grant type
         // i.e: if the grant type to create the session was `AUTHORIZATION` and the current grant type is
         // `CLIENT_CREDENTIALS`, we don't want to call the API on behalf of another user.
-        if (!empty($session) && isset($session['grant_type']) && ($session['grant_type'] === $this->grantType))
+        if (!empty($session) && isset($session['grant_type']) && ((int) $session['grant_type'] === $this->grantType))
         {
             if (!$forceRefresh && isset($session['access_token']))
             {
