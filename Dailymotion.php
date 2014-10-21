@@ -4,6 +4,8 @@
  * Provides access to the Dailymotion Graph API.
  *
  * @author Olivier Poitrey <rs@dailymotion.com>
+ * @author Nicolas Grevet <nicolas.grevet@dailymotion.com>
+ * @author Samir Amzani <samir.amzani@dailymotion.com>
  */
 class Dailymotion
 {
@@ -11,7 +13,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.6';
+    const VERSION = '1.6.1';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
