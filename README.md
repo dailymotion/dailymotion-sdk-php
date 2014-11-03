@@ -1,102 +1,214 @@
 Dailymotion PHP SDK
 ===================
 
-This repository contains the official open source PHP SDK that allows you to access the Dailymotion
-API from your website.
+This repository contains the official open source PHP SDK that allows you to access the [**Dailymotion Graph API**](http://developer.dailymotion.com/documentation/#graph-api) from your application.
 
 Usage
 -----
 
-### Authentication
+The PHP SDK implements the Dailymotion [Advanced API](http://developer.dailymotion.com/documentation/#advanced-api). For a list of all available methods, see the complete [API reference](http://developer.dailymotion.com/documentation/#api-reference). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
 
-The Dailymotion API requires OAuth 2.0 authentication in order to be used. This library implements
-three granting methods of OAuth 2.0 for different kind of usages.
+```php
+$api    = new Dailymotion();
+$result = $api->get(
+    '/videos',
+    array('fields' => array('id', 'title', 'owner'))
+);
+```
 
-#### Authorization Grant Type
+The `$result` variable contains the result of the method (as described in the API reference) as an `array`.
 
-This mode is the mode you should use in most cases. In this mode you redirect the user to an
-authorization page on Dailymotion, and you script is called back once the end-user authorized your API
-key to access the Dailymotion service on its behalf.
+#### Authentication
+
+The Dailymotion API requires OAuth 2.0 authentication in order to be used. This library implements three OAuth 2.0 granting methods for different kind of usages.
+
+**Note:** Contrary to most OAuth SDKs around, the Dailymotion PHP SDK implements **lazy authentication**, which means that no authentication request is sent as long as no data is requested from the API. At which point, two requests are sent back-to-back, one to authenticate and one to fetch the data. Keep this in mind while working through the rest of the documentation.
+
+**Note:** Please note that the Dailymotion PHP SDK also takes care of abstracting the entire OAuth flow, from retrieving, storing and using access tokens to using refresh tokens to gather new access tokens automatically. See the [Overloading the SDK](#overloading-the-sdk) section for more information about this.
+
+##### Authorization Grant Type
+
+This grant type is the one you should use in most cases. With this grant type you redirect the user to an authorization page on Dailymotion and your application is called back once the end-user authorized your API key to access the Dailymotion service on his/her behalf.
 
 Here is a usage example:
 
-    <?php
+```php
+// Instanciate the PHP SDK.
+$api = new Dailymotion();
 
-    $api = new Dailymotion();
-    $api->setGrantType(Dailymotion::GRANT_TYPE_AUTHORIZATION, $apiKey, $apiSecret);
+// Tell the SDK what kind of authentication you'd like to use.
+// Because the SDK works with lazy authentication, no request is performed at this point.
+$api->setGrantType(Dailymotion::GRANT_TYPE_TOKEN, $apiKey, $apiSecret)
 
-    try
+try
+{
+    // The following line will actually try to authenticate before making the API call.
+    // * The SDK takes care of retrying if the access token has expired.
+    // * The SDK takes care of storing the access token itself using its `readSession()`
+    //   and `storeSession()` methods that are made to be overridden in an extension
+    //   of the class if you want a different storage than provided by default.
+    $result = $api->get(
+        '/me/videos',
+        array('fields' => array('id', 'title', 'owner')
+    );
+}
+catch (DailymotionAuthRequiredException $e)
+{
+    // If the SDK doesn't have any access token stored in memory, it tries to
+    // redirect the user to the Dailymotion authorization page for authentication.
+    return header('Location: ' . $api->getAuthorizationUrl());
+}
+catch (DailymotionAuthRefusedException $e)
+{
+    // Handle the situation when the user refused to authorize and came back here.
+    // <YOUR CODE>
+}
+```
+
+##### Password Grant Type {#sdk-php-grant-password}
+
+If your PHP application isn't a web application and cannot redirect the user to the Dailymotion authorization page, the password grant type can be used instead of the authorization one. With this grant type you have the responsibility to ask the user for its credentials. Make sure your API secret remains secret though.
+
+Here is a usage example:
+
+```php
+// Instanciate the PHP SDK.
+$api = new Dailymotion();
+
+// Ask the end-user for his/her Dailymotion credentials in a way or another.
+if (empty($_POST['username']) || empty($_POST['password']))
+{
+    // <YOUR CODE>
+}
+else
+{
+    // Tell the SDK what kind of authentication you'd like to use. Because the SDK
+    // works with lazy authentication, no request is performed at this point.
+    $api->setGrantType(
+        Dailymotion::GRANT_TYPE_PASSWORD, 
+        $apiKey, $apiSecret, array(),
+        array(
+            'username' => $_POST['username'], // don't forget to sanitize this,
+            'password' => $_POST['password'], // never use POST variables this way
+        )
+    );
+    // The following line will actually try to authenticate before making the API call.
+    // * The SDK takes care of retrying if the access token has expired.
+    // * The SDK takes care of storing the access token itself using its `readSession()`
+    //   and `storeSession()` methods that are made to be overridden in an extension
+    //   of the class if you want a different storage than provided by default.
+    $result = $api->get(
+        '/me/videos',
+        array('fields' => array('id', 'title', 'owner'))
+    );
+}
+```
+
+##### Client Credentials Grant Type {#sdk-php-grant-credentials}
+
+If you don't need to access the Dailymotion API on behalf of someone else because, for instance, you only plan to access public data, you can use the client credentials grant type. With this grant type, you will only have access to public data or data protected by a specific scope and/or role. It's the equivalent of being unlogged but having the permission (granted by Dailymotion as part of a partners program or similar) to access sensitive data.
+
+Here is a usage example:
+
+```php
+// Instanciate the PHP SDK.
+$api = new Dailymotion();
+
+// Tell the SDK what kind of authentication you'd like to use. 
+// Because the SDK works with lazy authentication, no request is performed at this point.
+$api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $apiKey, $apiSecret);
+
+// This will actually try to authenticate before making the API call.
+// * The SDK takes care of retrying if the access token has expired.
+// * The SDK takes care of storing the access token itself using its `readSession()`
+//   and `storeSession()` methods that are made to be overridden in an extension
+//   of the class if you want a different storage than provided by default.
+$result = $api->get(
+    '/videos',
+    array('fields' => array('id', 'title', 'owner'))
+);
+```
+
+There is no authenticated user in this scenario, thus you won't be able to access the `/me` endpoint.
+
+#### Upload File {#sdk-php-upload}
+
+Some methods like `POST /me/videos` requires a URL to a file.
+To create those URLs, Dailymotion offers a temporary upload service through the `Dailymotion::uploadFile()` method which can be used like this:
+
+```php
+// Temporarily upload a file on Dailymotion' servers
+// This does not create a video, it only offers you a public URL to work with.
+$url = $api->uploadFile($filePath);
+var_dump($url);
+```
+
+You can then use this `$url` result as an argument to methods requiring such a parameter.
+For instance to create a video:
+
+```php
+// More fields may be mandatory in order to create a video.
+// Please refer to the complete API reference for a list of all the required data.
+$result = $api->post(
+    '/me/videos',
+    array('url' => $url, 'title' => $videoTitle)
+);
+```
+You can also retrieve a progress URL like this:
+
+```php
+$progressUrl = null;
+$url = $api->uploadFile($filePath, null, $progressUrl);
+var_dump($progressUrl);
+```
+
+Hitting this URL after the upload has started allows you to monitor the progress of the upload.
+
+#### Overloading the SDK {#sdk-php-overloading}
+
+As stated in the [Authentication section](#authentication) above, the PHP SDK takes care of abstracting the entire OAuth flow, including retrieving, storing and using access tokens. Overloading the SDK with your own implementation allows you to adapt the SDK behaviour to your needs. The most common usage is to overload both `Dailymotion::storeSession()` and `Dailymotion::readSession()` methods to change the default storage system which uses cookies.
+
+Here is an crude example of overloading the SDK to store sessions (access token + refresh token) on the file system instead of using cookies (for a command line program for example):
+
+```php
+class DailymotionCli extends Dailymotion
+{
+    /**
+     * Where to store the current application session.
+     * @var string
+     */
+    protected static $sessionFile;
+
+    /**
+     * Define where to store the session on the file system.
+     */
+    public function __construct()
     {
-        $result = $api->get('/me/videos', array('fields' => 'id,title,description'));
+        self::$sessionFile = __DIR__ . '/api-session.json';
     }
-    catch (DailymotionAuthRequiredException $e)
+    /**
+     * Overloading the default implementation with file system implementation.
+     * `readSession` is used to restore the session from its storage medium.
+     * @return array Restored session information.
+     */
+    protected function readSession()
     {
-        // Redirect the user to the Dailymotion authorization page
-        header('Location: ' . $api->getAuthorizationUrl());
-        return;
+        $session = json_decode(file_get_contents(self::$sessionFile), true);
+        return $session;
     }
-    catch (DailymotionAuthRefusedException $e)
+    /**
+     * Overloading the default implementation with file system implementation.
+     * `storeSession` is used to store the session to its storage medium.
+     *
+     * @param array $session Session information to store.
+     * @return DailymotionCli $this
+     */
+    protected function storeSession(array $session = array())
     {
-        // Handle case when user refused to authorize
-        // <YOUR CODE>
+        file_put_contents(self::$sessionFile, json_encode($session), LOCK_EX);
+        return $this;
     }
+}
+```
 
-#### Password Grant Type
-
-If you PHP application isn't a web application and cannot redirect the user to the Dailymotion
-authorization page, the password grant type can be used. With this grant type you have the
-responsibility to ask the user for its credentials. Make sure you API secret remains secret though.
-
-    <?php
-
-    $api = new Dailymotion();
-
-    if (isset($_POST['username']) || isset($_POST['password']))
-    {
-        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $apiKey, $apiSecret, $scope = array('manage_videos'),
-                           array('username' => $_POST['username'], 'password' => $_POST['password']));
-    }
-    else
-    {
-        $api->setGrantType(Dailymotion::GRANT_TYPE_PASSWORD, $apiKey, $apiSecret, $scope = array('manage_videos'));
-    }
-
-    try
-    {
-        $result = $api->get('/me/videos', array('fields' => 'id,title,description'));
-    }
-    catch (DailymotionAuthRequiredException $e)
-    {
-        // Ask user's Dailymotion login/password
-        // <YOUR CODE>
-    }
-
-#### Client Credentials Grant Type
-
-If you don't need to access the Dailymotion API on behalf of a user because, for instance, you plan to
-only access public data, you can use the CLIENT_CREDENTIALS grant type. With this grant type, you will only have
-access to public data or private date of the user owning the API key.
-
-    <?php
-
-    $api = new Dailymotion();
-    $api->setGrantType(Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS, $apiKey, $apiSecret);
-    $result = $api->get('/videos', array('fields' => 'id,title,description'));
-
-### File Upload
-
-Certain methods like `POST /videos` requires a URL to a file. To create those URLs, the `uploadFile()` method can be used to create such URL:
-
-    $url = $api->uploadFile($filePath);
-
-You can then use this URL as an argument to methods requiring a URL parameter. For instance to create a video:
-
-    $result = $api->post('/videos', array('url' => $url));
-
-Feedback
---------
-
-We are relying on the [GitHub issues tracker][issues] linked from above for feedback. File bugs or
-other issues [here][issues].
-
-[issues]: http://github.com/dailymotion/dailymotion-sdk-php/issues
+Don't hesitate to extend the functionalities of the SDK and send us [pull requests](https://github.com/dailymotion/dailymotion-sdk-php/pulls) once you're done! And again, if you think that something's wrong, don't hesitate [report any issue](https://github.com/dailymotion/dailymotion-sdk-php/issues).
