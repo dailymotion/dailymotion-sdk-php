@@ -463,7 +463,7 @@ class Dailymotion
      *
      * @return string Access token or `null` if no grant type defined (un-authen API calls).
      */
-    protected function getAccessToken($forceRefresh = false)
+    public function getAccessToken($forceRefresh = false)
     {
         if ($this->grantType === null)
         {
@@ -584,7 +584,7 @@ class Dailymotion
     }
 
     /**
-     * Set the session and store it if `$storeSession` is true.
+     * Set the session and store it if `$this->storeSession` is true.
      *
      * @param $session array the session to set
      * @return Dailymotion `$this`
