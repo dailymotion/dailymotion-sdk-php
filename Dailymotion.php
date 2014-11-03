@@ -13,7 +13,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.6.1';
+    const VERSION = '1.6.2';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -304,7 +304,7 @@ class Dailymotion
      * ```
      * @param string  $filePath      Path to the file to upload on the local filesystem.
      * @param string  $forceHostname Force a specific Dailymotion server (not recommended).
-     * @param boolean &$progressUrl  If this variable is given, it will include the progress URL in it.
+     * @param string &$progressUrl   If this variable is given, it will include the progress URL in it.
      * @return string                URL of the file on Dailymotion's servers.
      */
     public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null)
@@ -873,16 +873,26 @@ class Dailymotion
      */
     protected function getCurrentUrl()
     {
-        $values = filter_input_array(
-            INPUT_SERVER,
-            array(
-                'HTTPS'                  => FILTER_VALIDATE_BOOLEAN,
-                'HTTP_SSL_HTTPS'         => FILTER_VALIDATE_BOOLEAN,
-                'HTTP_X_FORWARDED_PROTO' => FILTER_SANITIZE_STRING,
-                'HTTP_HOST'              => FILTER_SANITIZE_STRING,
-                'REQUEST_URI'            => FILTER_SANITIZE_STRING,
-            )
+        $filters = array(
+            'HTTPS'                  => FILTER_VALIDATE_BOOLEAN,
+            'HTTP_SSL_HTTPS'         => FILTER_VALIDATE_BOOLEAN,
+            'HTTP_X_FORWARDED_PROTO' => FILTER_SANITIZE_STRING,
+            'HTTP_HOST'              => FILTER_SANITIZE_STRING,
+            'REQUEST_URI'            => FILTER_SANITIZE_STRING,
         );
+        // FastCGI seems to cause strange side-effects with unexpected NULL values when using INPUT_SERVER and
+        // INPUT_ENV with the filter_input() and filter_input_array() functions, so we're using a workaround there.
+        // See: http://fr2.php.net/manual/en/function.filter-input.php#77307
+        if (PHP_SAPI === 'cgi-fcgi')
+        {
+            $values = $filters;
+            array_walk($values, function (&$value, $key) { $value = isset($_SERVER[$key]) ? $_SERVER[$key] : null; });
+            $values = filter_var_array($values, $filters);
+        }
+        else
+        {
+            $values = filter_input_array(INPUT_SERVER, $filters);
+        }
         $secure = ($values['HTTPS'] || $values['HTTP_SSL_HTTPS'] || (strtolower($values['HTTP_X_FORWARDED_PROTO']) === 'https'));
         $scheme = $secure ? 'https://' : 'http://';
 
