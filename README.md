@@ -53,7 +53,7 @@ $api = new Dailymotion();
 
 // Tell the SDK what kind of authentication you'd like to use.
 // Because the SDK works with lazy authentication, no request is performed at this point.
-$api->setGrantType(Dailymotion::GRANT_TYPE_TOKEN, $apiKey, $apiSecret);
+$api->setGrantType(Dailymotion::GRANT_TYPE_AUTHORIZATION, $apiKey, $apiSecret);
 
 try
 {
