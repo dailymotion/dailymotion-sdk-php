@@ -1,7 +1,7 @@
 Dailymotion PHP SDK
 ===================
 
-This repository contains the official open source PHP SDK that allows you to access the [**Dailymotion Graph API**](http://developer.dailymotion.com/documentation/#graph-api) from your application.
+This repository contains the official open source PHP SDK that allows you to access the [**Dailymotion Graph API**](http://developer.dailymotion.com/documentation/#graph-api) from your PHP application.
 
 Usage
 -----
@@ -9,22 +9,37 @@ Usage
 The PHP SDK implements the Dailymotion [Advanced API](http://developer.dailymotion.com/documentation/#advanced-api). For a list of all available methods, see the complete [API reference](http://developer.dailymotion.com/documentation/#api-reference). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
 
 ```php
-$api    = new Dailymotion();
+$api = new Dailymotion();
 $result = $api->get(
     '/videos',
     array('fields' => array('id', 'title', 'owner'))
 );
 ```
 
-The `$result` variable contains the result of the method (as described in the API reference) as an `array`.
+The `$result` variable contains the result of the method (as described in the [Graph API overview](http://developer.dailymotion.com/documentation/#response-types)) as an `array`.
 
 #### Authentication
 
-The Dailymotion API requires OAuth 2.0 authentication in order to be used. This library implements three OAuth 2.0 granting methods for different kind of usages.
+The Dailymotion API requires OAuth 2.0 authentication in order to be used.
 
-**Note:** Contrary to most OAuth SDKs around, the Dailymotion PHP SDK implements **lazy authentication**, which means that no authentication request is sent as long as no data is requested from the API. At which point, two requests are sent back-to-back, one to authenticate and one to fetch the data. Keep this in mind while working through the rest of the documentation.
+Contrary to most OAuth SDKs, the Dailymotion PHP SDK implements **lazy authentication**, which means that no authentication request is sent as long as no data is requested from the API. At which point, two requests are sent back-to-back, one to authenticate and one to fetch the data. Keep this in mind while working through the rest of the documentation.
 
-**Note:** Please note that the Dailymotion PHP SDK also takes care of abstracting the entire OAuth flow, from retrieving, storing and using access tokens to using refresh tokens to gather new access tokens automatically. See the [Overloading the SDK](#overloading-the-sdk) section for more information about this.
+Please note that **the Dailymotion PHP SDK also takes care of abstracting the entire OAuth flow**, from retrieving, storing and using access tokens, to using refresh tokens to gather new access tokens automatically. You shouldn't have to deal with access tokens manually but if you have to, at the programming-level, the SDK exposes this information with the `Dailymotion::getSession()` and `Dailymotion::setSession()` methods. At the Oauth-level, a _session_ is the response sent by the OAuth server when successfully authenticated, for example:
+
+```js
+{
+    "access_token": "<ACCESS_TOKEN>",
+    "token_type": "Bearer",
+    "expires_in": 36000,
+    "refresh_token": "<REFRESH_TOKEN>",
+    "scope": "manage_videos userinfo",
+    "uid": "<USER_ID>"
+}
+```
+
+If you really wish to manually retrieve an access token without waiting for the SDK to take care of it when sending the first query, you can use the  `Dailymotion::getAccessToken()` method. It will try to authenticate and return you the corresponding access token or an exception. Please note that this isn't the recommended way to proceed. See the [Overloading the SDK](#overloading-the-sdk) section for more information about handling access tokens.
+
+This library implements three OAuth 2.0 granting methods for different kind of usages.
 
 ##### Authorization Grant Type
 
@@ -38,7 +53,7 @@ $api = new Dailymotion();
 
 // Tell the SDK what kind of authentication you'd like to use.
 // Because the SDK works with lazy authentication, no request is performed at this point.
-$api->setGrantType(Dailymotion::GRANT_TYPE_TOKEN, $apiKey, $apiSecret)
+$api->setGrantType(Dailymotion::GRANT_TYPE_TOKEN, $apiKey, $apiSecret);
 
 try
 {
@@ -65,7 +80,7 @@ catch (DailymotionAuthRefusedException $e)
 }
 ```
 
-##### Password Grant Type {#sdk-php-grant-password}
+##### Password Grant Type
 
 If your PHP application isn't a web application and cannot redirect the user to the Dailymotion authorization page, the password grant type can be used instead of the authorization one. With this grant type you have the responsibility to ask the user for its credentials. Make sure your API secret remains secret though.
 
@@ -104,7 +119,7 @@ else
 }
 ```
 
-##### Client Credentials Grant Type {#sdk-php-grant-credentials}
+##### Client Credentials Grant Type
 
 If you don't need to access the Dailymotion API on behalf of someone else because, for instance, you only plan to access public data, you can use the client credentials grant type. With this grant type, you will only have access to public data or data protected by a specific scope and/or role. It's the equivalent of being unlogged but having the permission (granted by Dailymotion as part of a partners program or similar) to access sensitive data.
 
@@ -131,7 +146,7 @@ $result = $api->get(
 
 There is no authenticated user in this scenario, thus you won't be able to access the `/me` endpoint.
 
-#### Upload File {#sdk-php-upload}
+#### Upload File
 
 Some methods like `POST /me/videos` requires a URL to a file.
 To create those URLs, Dailymotion offers a temporary upload service through the `Dailymotion::uploadFile()` method which can be used like this:
@@ -164,11 +179,13 @@ var_dump($progressUrl);
 
 Hitting this URL after the upload has started allows you to monitor the progress of the upload.
 
-#### Overloading the SDK {#sdk-php-overloading}
+#### Overloading the SDK
 
-As stated in the [Authentication section](#authentication) above, the PHP SDK takes care of abstracting the entire OAuth flow, including retrieving, storing and using access tokens. Overloading the SDK with your own implementation allows you to adapt the SDK behaviour to your needs. The most common usage is to overload both `Dailymotion::storeSession()` and `Dailymotion::readSession()` methods to change the default storage system which uses cookies.
+As stated in the [Authentication section](#authentication) above, the PHP SDK takes care of abstracting the entire OAuth flow, from retrieving, storing and using access tokens, to using refresh tokens to gather new access tokens automatically. 
 
-Here is an crude example of overloading the SDK to store sessions (access token + refresh token) on the file system instead of using cookies (for a command line program for example):
+Overloading the SDK with your own implementation allows you to adapt the SDK behaviour to your needs. The most common usage is to overload both `Dailymotion::storeSession()` and `Dailymotion::readSession()` methods to change the default storage system (which uses cookies).
+
+Here is a crude example of overloading the SDK to store sessions (access token + refresh token) on the file system instead of using cookies (for a command line program for example):
 
 ```php
 class DailymotionCli extends Dailymotion
@@ -211,4 +228,4 @@ class DailymotionCli extends Dailymotion
 }
 ```
 
-Don't hesitate to extend the functionalities of the SDK and send us [pull requests](https://github.com/dailymotion/dailymotion-sdk-php/pulls) once you're done! And again, if you think that something's wrong, don't hesitate [report any issue](https://github.com/dailymotion/dailymotion-sdk-php/issues).
+Don't hesitate to extend the functionalities of the SDK and send us [pull requests](https://github.com/dailymotion/dailymotion-sdk-php/pulls) once you're done! And again, if you think that something's wrong, don't hesitate to [report any issue](https://github.com/dailymotion/dailymotion-sdk-php/issues).
