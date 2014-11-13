@@ -328,7 +328,7 @@ class Dailymotion
         $this->timeout = $timeout;
 
         if (isset($result['error'])) {
-            throw new DailymotionApiException($result['error']);
+            throw new DailymotionApiException($result['error']['message'], $result['error']['code']);
         }
 
         return $result['url'];
