@@ -302,10 +302,11 @@ class Dailymotion
      *   'published' => true,
      * );
      * ```
-     * @param string  $filePath      Path to the file to upload on the local filesystem.
-     * @param string  $forceHostname Force a specific Dailymotion server (not recommended).
-     * @param string &$progressUrl   If this variable is given, it will include the progress URL in it.
-     * @return string                URL of the file on Dailymotion's servers.
+     * @param string  $filePath        Path to the file to upload on the local filesystem.
+     * @param string  $forceHostname   Force a specific Dailymotion server (not recommended).
+     * @param string &$progressUrl     If this variable is given, it will include the progress URL in it.
+     * @return string                  URL of the file on Dailymotion's servers.
+     * @throws DailymotionApiException If the API itself returned an error.
      */
     public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null)
     {
@@ -325,6 +326,11 @@ class Dailymotion
             true
         );
         $this->timeout = $timeout;
+
+        if (isset($result['error']))
+        {
+            throw new DailymotionApiException($result['error']['message'], $result['error']['code']);
+        }
         return $result['url'];
     }
 
