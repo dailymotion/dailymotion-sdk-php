@@ -13,7 +13,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.6.2';
+    const VERSION = '1.6.3';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
