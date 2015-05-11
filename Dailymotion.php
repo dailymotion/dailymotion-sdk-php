@@ -809,7 +809,7 @@ class Dailymotion
     protected function httpRequest($url, $payload, $headers = null, &$statusCode = null, &$responseHeaders = array(), $encodePayload = false)
     {
         $payload = (is_array($payload) && (true === $encodePayload))
-            ? http_build_query($payload)
+            ? http_build_query($payload, null, '&')
             : $payload;
 
         // Force removal of the Expect: 100-continue header automatically added by cURL
