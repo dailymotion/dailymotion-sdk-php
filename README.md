@@ -1,12 +1,12 @@
 Dailymotion PHP SDK
 ===================
 
-This repository contains the official open source PHP SDK that allows you to access the [**Dailymotion Graph API**](http://developer.dailymotion.com/documentation/#graph-api) from your PHP application.
+This repository contains the official open source PHP SDK that facilitates access to the [**Dailymotion Graph API**](http://developer.dailymotion.com/documentation/#graph-api) from your PHP application. For more information about developing with Dailymotion's services, head to the [Developer Area](http://developer.dailymotion.com).
 
 Usage
 -----
 
-The PHP SDK implements the Dailymotion [Advanced API](http://developer.dailymotion.com/documentation/#advanced-api). For a list of all available methods, see the complete [API reference](http://developer.dailymotion.com/documentation/#api-reference). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
+**The PHP SDK implements the Dailymotion [Advanced API](http://developer.dailymotion.com/documentation/#advanced-api).** For a list of all available methods, see the complete [API reference](http://developer.dailymotion.com/documentation/#api-reference). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
 
 ```php
 $api = new Dailymotion();
@@ -16,15 +16,15 @@ $result = $api->get(
 );
 ```
 
-The `$result` variable contains the result of the method (as described in the [Graph API overview](http://developer.dailymotion.com/documentation/#response-types)) as an `array`.
+The `$result` variable contains the result of the method (as described in the [Graph API overview](http://developer.dailymotion.com/documentation/#response-types)) as an [`array`](http://developer.dailymotion.com/documentation/#type-array).
 
 #### Authentication
 
-The Dailymotion API requires OAuth 2.0 authentication in order to be used.
+The Dailymotion API requires OAuth 2.0 authentication in order to access protected resources.
 
-Contrary to most OAuth SDKs, the Dailymotion PHP SDK implements **lazy authentication**, which means that no authentication request is sent as long as no data is requested from the API. At which point, two requests are sent back-to-back, one to authenticate and one to fetch the data. Keep this in mind while working through the rest of the documentation.
+Contrary to most OAuth SDKs, the Dailymotion PHP SDK implements **lazy authentication**, which means that no authentication request is sent as long as no data is requested from the API. At which point, two requests are sent back-to-back during the first request for information, one to authenticate and one to fetch the data. Keep this in mind while working through the rest of the documentation.
 
-Please note that **the Dailymotion PHP SDK also takes care of abstracting the entire OAuth flow**, from retrieving, storing and using access tokens, to using refresh tokens to gather new access tokens automatically. You shouldn't have to deal with access tokens manually but if you have to, at the programming-level, the SDK exposes this information with the `Dailymotion::getSession()` and `Dailymotion::setSession()` methods. At the Oauth-level, a _session_ is the response sent by the OAuth server when successfully authenticated, for example:
+Please note that **the Dailymotion PHP SDK also takes care of abstracting the entire OAuth flow**, from retrieving, storing and using access tokens, to using refresh tokens to gather new access tokens automatically. You shouldn't have to deal with access tokens manually but if you have to, at the programming-level, the SDK exposes this information with the `Dailymotion::getSession()` and `Dailymotion::setSession()` methods. At the OAuth-level, a _session_ is the response sent by the OAuth server when successfully authenticated, for example:
 
 ```js
 {
@@ -32,10 +32,12 @@ Please note that **the Dailymotion PHP SDK also takes care of abstracting the en
     "token_type": "Bearer",
     "expires_in": 36000,
     "refresh_token": "<REFRESH_TOKEN>",
-    "scope": "manage_videos userinfo",
+    "scope": "<SCOPE1 SCOPE2 SCOPE3>",
     "uid": "<USER_ID>"
 }
 ```
+
+**Note:** One of the problems with OAuth 2.0 is that the specification doesn't offer any mechanism to upgrade the scope of an existing session. To add new scopes to an already existing session, you first need to call the `Dailymotion::logout()` method and start a new session with your new list of scopes.
 
 If you really wish to manually retrieve an access token without waiting for the SDK to take care of it when sending the first query, you can use the  `Dailymotion::getAccessToken()` method. It will try to authenticate and return you the corresponding access token or an exception. Please note that this isn't the recommended way to proceed. See the [Overloading the SDK](#overloading-the-sdk) section for more information about handling access tokens.
 
@@ -43,7 +45,7 @@ This library implements three OAuth 2.0 granting methods for different kind of u
 
 ##### Authorization Grant Type
 
-This grant type is the one you should use in most cases. With this grant type you redirect the user to an authorization page on Dailymotion and your application is called back once the end-user authorized your API key to access the Dailymotion service on his/her behalf.
+This grant type is the one you should use in most cases. With this grant type you redirect the user to an authorization page on Dailymotion and your application is called back once the end-user authorized your API key to access Dailymotion on his/her behalf.
 
 Here is a usage example:
 
@@ -82,7 +84,7 @@ catch (DailymotionAuthRefusedException $e)
 
 ##### Password Grant Type
 
-If your PHP application isn't a web application and cannot redirect the user to the Dailymotion authorization page, the password grant type can be used instead of the authorization one. With this grant type you have the responsibility to ask the user for its credentials. Make sure your API secret remains secret though.
+If your PHP application isn't a web application and cannot redirect the user to the Dailymotion authorization page, the password grant type can be used instead of the authorization one. With this grant type you have the responsibility to ask the user for its credentials. **Make sure your API secret remains secret though**, do not use this kind of authentication for any service that is running on the client if you do not want your API secret to be publicly exposed.
 
 Here is a usage example:
 
@@ -101,7 +103,9 @@ else
     // works with lazy authentication, no request is performed at this point.
     $api->setGrantType(
         Dailymotion::GRANT_TYPE_PASSWORD, 
-        $apiKey, $apiSecret, array(),
+        $apiKey,
+        $apiSecret,
+        array(), // OAuth 2.0 scopes that you'd like to be granted by the end-user
         array(
             'username' => $_POST['username'], // don't forget to sanitize this,
             'password' => $_POST['password'], // never use POST variables this way
@@ -177,7 +181,7 @@ $url = $api->uploadFile($filePath, null, $progressUrl);
 var_dump($progressUrl);
 ```
 
-Hitting this URL after the upload has started allows you to monitor the progress of the upload.
+Hitting this URL after the upload has started allows you to monitor the upload progress.
 
 #### Overloading the SDK
 
