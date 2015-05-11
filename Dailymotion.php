@@ -158,6 +158,12 @@ class Dailymotion
     protected $storeSession = true;
 
     /**
+     * If the current server supports it, we follow redirects.
+     * @var boolean
+     */
+    protected $followRedirects;
+
+    /**
      * List of query parameters that get automatically dropped when rebuilding the current URL.
      * @var array
      */
@@ -829,8 +835,17 @@ class Dailymotion
             CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_NOPROGRESS     => !($this->debug && is_array($payload) && array_key_exists('file', $payload)),
         );
+        // There is no constructor to this class and I don't intend to add one just for this (PHP 4 legacy and all).
+        if (is_null($this->followRedirects))
+        {
+            // We use filter_var() here because depending on PHP's version, these ini_get() may or may not return:
+            // true/false or even the strings 'on', 'off', 'true' or 'false' or folder paths... better safe than sorry.
+            $this->followRedirects =
+                (false === filter_var(ini_get('open_basedir'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE))
+                && (false === filter_var(ini_get('safe_mode'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE));
+        }
         // If the current server supports it, we follow redirects
-        if (!filter_var(ini_get('open_basedir'), FILTER_VALIDATE_BOOLEAN) && !filter_var(ini_get('safe_mode'), FILTER_VALIDATE_BOOLEAN))
+        if ($this->followRedirects === true)
         {
             $options[CURLOPT_FOLLOWLOCATION] = true;
             $options[CURLOPT_MAXREDIRS]      = self::CURLOPT_MAXREDIRS;
