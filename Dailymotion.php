@@ -310,13 +310,20 @@ class Dailymotion
      * ```
      * @param string  $filePath        Path to the file to upload on the local filesystem.
      * @param string  $forceHostname   Force a specific Dailymotion server (not recommended).
-     * @param string &$progressUrl     If this variable is given, it will include the progress URL in it.
+     * @param string  &$progressUrl    If this variable is given, it will include the progress URL in it.
+     * @param string  $callbackUrl     It will ping a given url once the upload is finished
      * @return string                  URL of the file on Dailymotion's servers.
      * @throws DailymotionApiException If the API itself returned an error.
      */
-    public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null)
+    public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null, $callbackUrl = null)
     {
-        $result = $this->get('/file/upload');
+        $params = array();
+        if (!empty($callbackUrl))
+        {
+            $params['callback_url'] = $callbackUrl;
+        }
+
+        $result = $this->get('/file/upload', $params);
         $progressUrl = $result['progress_url'];
         if (!empty($forceHostname))
         {
