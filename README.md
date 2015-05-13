@@ -66,7 +66,7 @@ try
     //   of the class if you want a different storage than provided by default.
     $result = $api->get(
         '/me/videos',
-        array('fields' => array('id', 'title', 'owner')
+        array('fields' => array('id', 'title', 'owner'))
     );
 }
 catch (DailymotionAuthRequiredException $e)
