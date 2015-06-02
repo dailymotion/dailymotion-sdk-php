@@ -637,7 +637,7 @@ class Dailymotion
      */
     public function clearSession()
     {
-        $this->session = array();
+        $this->setSession();
         return $this;
     }
 
