@@ -1,11 +1,28 @@
 {
-    "name": "dailymotion/sdk",
+    "name": "baorv/dailymotion-sdk",
     "license": "MIT",
     "type": "library",
     "description": "Dailymotion PHP SDK",
-    "keywords": ["dailymotion","sdk","api"],
+    "keywords": [
+        "dailymotion",
+        "sdk",
+        "api"
+    ],
     "homepage": "http://dailymotion.com",
     "autoload": {
-        "classmap": ["Dailymotion.php"]
+        "psr-4": {
+            "baorv\\dailymotion\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "classmap": [
+            "test/DailymotionTest.php"
+        ]
+    },
+    "require": {
+        "php": ">=5.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^5.4"
     }
 }

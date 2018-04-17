@@ -1,1 +1,3 @@
 local_config.php
+/vendor
+/.idea
