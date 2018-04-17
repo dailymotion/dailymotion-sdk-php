@@ -1,76 +1,22 @@
 <?php
 
-$apiKey = null;
-$apiSecret = null;
-$testUser = null;
-$testPassword = null;
-$testVideoFile = null;
-$proxy = null;
-$apiEndpointUrl = null;
-$oauthAuthorizeEndpointUrl = null;
-$oauthTokenEndpointUrl = null;
+use baorv\dailymotion\Dailymotion;
+use baorv\dailymotion\exceptions\DailymotionApiException;
+use baorv\dailymotion\exceptions\DailymotionAuthRequiredException;
+use PHPUnit\Framework\TestCase;
 
-@include 'local_config.php';
-
-if (!function_exists('readline'))
+class DailymotionTest extends TestCase
 {
-    function readline($prompt = '')
-    {
-        echo $prompt;
-        return rtrim(fgets(STDIN), "\n");
-    }
-}
-
-if (!$apiKey) $apiKey = readline('API Key: ');
-if (!$apiSecret) $apiSecret = readline('API Secret: ');
-if (!$testUser) $testUser = readline('Test User: ');
-if (!$testPassword) $testPassword = readline('Test User Password: ');
-if (!$testVideoFile) $testVideoFile = readline('Test Video File: ');
-
-require_once 'Dailymotion.php';
-
-class DailymotionTest extends PHPUnit_Framework_TestCase
-{
-    protected
-        $api = null,
-        $apiKey = null,
-        $apiSecret = null;
-
-    protected function setUp()
-    {
-        global $apiKey,
-               $apiSecret,
-               $proxy,
-               $apiEndpointUrl,
-               $oauthAuthorizeEndpointUrl,
-               $oauthTokenEndpointUrl;
-
-        $this->api = new Dailymotion();
-        $this->apiKey = $apiKey;
-        $this->apiSecret = $apiSecret;
-
-        if (!empty($proxy))
-        {
-            $this->api->proxy = $proxy;
-        }
-        if (!empty($apiEndpointUrl))
-        {
-            $this->api->apiEndpointUrl = $apiEndpointUrl;
-        }
-        if (!empty($oauthAuthorizeEndpointUrl))
-        {
-            $this->api->oauthAuthorizeEndpointUrl = $oauthAuthorizeEndpointUrl;
-        }
-        if (!empty($oauthTokenEndpointUrl))
-        {
-            $this->api->oauthTokenEndpointUrl = $oauthTokenEndpointUrl;
-        }
-    }
+    protected $api = null;
+    protected $apiKey = null;
+    protected $apiSecret = null;
 
     public function testNoGrantTypePublicData()
     {
         $message = 'test';
-        $result = $this->api->get('/echo', array('message' => $message));
+        $result = $this->api->get('/echo', [
+            'message' => $message
+        ]);
 
         $this->assertInternalType('array', $result);
         $this->assertArrayHasKey('message', $result);
@@ -90,7 +36,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
      */
     public function testNoGrantTypeAuthRequired()
     {
-        $result = $this->api->get('/videos/subscriptions');
+        $this->api->get('/videos/subscriptions');
     }
 
     /**
@@ -98,7 +44,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
      */
     public function testNoGrantTypeAuthRequiredMe()
     {
-        $result = $this->api->get('/me');
+        $this->api->get('/me');
     }
 
     public function testGrantTypeClientCredentials()
@@ -134,17 +80,14 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
      */
     public function testGrantTypeChangeFromSessionRequired()
     {
-        try
-        {
+        try {
             $this->api->setGrantType(
                 Dailymotion::GRANT_TYPE_CLIENT_CREDENTIALS,
                 $this->apiKey, $this->apiSecret
             );
             $result = $this->api->get('/auth');
             $this->assertInternalType('array', $result);
-        }
-        catch (DailymotionAuthRequiredException $e)
-        {
+        } catch (DailymotionAuthRequiredException $e) {
             // Test must not succeed if this call throws the exception
         }
         $this->api->setGrantType(
@@ -177,5 +120,32 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         sleep(2);
         $result = $this->api->delete("/video/{$result['id']}");
         $this->assertInternalType('array', $result);
+    }
+
+    protected function setUp()
+    {
+        global $apiKey,
+               $apiSecret,
+               $proxy,
+               $apiEndpointUrl,
+               $oauthAuthorizeEndpointUrl,
+               $oauthTokenEndpointUrl;
+
+        $this->api = new Dailymotion();
+        $this->apiKey = $apiKey;
+        $this->apiSecret = $apiSecret;
+
+        if (!empty($proxy)) {
+            $this->api->proxy = $proxy;
+        }
+        if (!empty($apiEndpointUrl)) {
+            $this->api->apiEndpointUrl = $apiEndpointUrl;
+        }
+        if (!empty($oauthAuthorizeEndpointUrl)) {
+            $this->api->oauthAuthorizeEndpointUrl = $oauthAuthorizeEndpointUrl;
+        }
+        if (!empty($oauthTokenEndpointUrl)) {
+            $this->api->oauthTokenEndpointUrl = $oauthTokenEndpointUrl;
+        }
     }
 }
