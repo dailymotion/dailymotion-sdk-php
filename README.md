@@ -1,12 +1,12 @@
 Dailymotion PHP SDK
 ===================
 
-This repository contains the official open source PHP SDK that facilitates access to the [**Dailymotion Graph API**](http://developer.dailymotion.com/documentation/#graph-api) from your PHP application. For more information about developing with Dailymotion's services, head to the [Developer Area](http://developer.dailymotion.com).
+This repository contains the official open source PHP SDK that facilitates access to the [**Dailymotion Graph API**](https://developer.dailymotion.com/api/) from your PHP application. For more information about developing with Dailymotion's services, head to the [Developer Area](https://developer.dailymotion.com).
 
 Usage
 -----
 
-**The PHP SDK implements the Dailymotion [Advanced API](http://developer.dailymotion.com/documentation/#advanced-api).** For a list of all available methods, see the complete [API reference](http://developer.dailymotion.com/documentation/#api-reference). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
+**The PHP SDK implements the Dailymotion [Advanced API](https://developer.dailymotion.com/api/).** For a list of all available methods, see the complete [API reference](https://developer.dailymotion.com/api/#api-reference). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
 
 ```php
 $api = new Dailymotion();
@@ -16,7 +16,7 @@ $result = $api->get(
 );
 ```
 
-The `$result` variable contains the result of the method (as described in the [Graph API overview](http://developer.dailymotion.com/documentation/#response-types)) as an [`array`](http://developer.dailymotion.com/documentation/#type-array).
+The `$result` variable contains the result of the method (as described in the [Graph API overview](https://developer.dailymotion.com/api/#response-types)) as an [`array`](https://developer.dailymotion.com/api/#type-array).
 
 #### Authentication
 
@@ -158,7 +158,7 @@ To create those URLs, Dailymotion offers a temporary upload service through the 
 ```php
 // Temporarily upload a file on Dailymotion' servers
 // This does not create a video, it only offers you a public URL to work with.
-$url = $api->uploadFile($filePath);
+$url = $api->uploadFile('/Path/to/your/local/video/file');
 var_dump($url);
 ```
 
