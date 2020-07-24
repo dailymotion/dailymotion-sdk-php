@@ -1,5 +1,6 @@
 <?php
 
+require_once 'xupload.php';
 /**
  * Provides access to the Dailymotion Graph API.
  *
@@ -13,7 +14,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.6.5';
+    const VERSION = '1.6.6';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -308,22 +309,22 @@ class Dailymotion
      *   'published' => true,
      * );
      * ```
-     * @param string  $filePath        Path to the file to upload on the local filesystem.
-     * @param string  $forceHostname   Force a specific Dailymotion server (not recommended).
-     * @param string  &$progressUrl    If this variable is given, it will include the progress URL in it.
-     * @param string  $callbackUrl     It will ping a given url once the upload is finished
-     * @return string                  URL of the file on Dailymotion's servers.
-     * @throws DailymotionApiException If the API itself returned an error.
+     *
+     * @param string   $filePath         path to the file to upload on the local filesystem
+     * @param string   $forceHostname    force a specific Dailymotion server (not recommended)
+     * @param string   &$progressUrl     If this variable is given, it will include the progress URL in it
+     * @param string   $callbackUrl      It will ping a given url once the upload is finished
+     * @param int      $workers          Number of concurrent connections used to upload file (can be up to 8)
+     *                                   Setting to 0 will use multipart/form-data upload method
+     * @param callable $progressCallback Method called to track the upload progress. See progressCallback method as example
+     *
+     * @return string URL of the file on Dailymotion's servers
+     *
+     * @throws DailymotionApiException if the API itself returned an error
      */
-    public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null, $callbackUrl = null)
+    public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null, $callbackUrl = null, $workers = 0, $progressCallback = null)
     {
-        $params = array();
-        if (!empty($callbackUrl))
-        {
-            $params['callback_url'] = $callbackUrl;
-        }
-
-        $result = $this->get('/file/upload', $params);
+        $result = $this->get('/file/upload');
         $progressUrl = $result['progress_url'];
         if (!empty($forceHostname))
         {
@@ -334,17 +335,51 @@ class Dailymotion
         $this->timeout = null;
 
         // Upload the file to Dailymotion's servers
-        $result = json_decode(
-            $this->httpRequest($result['upload_url'], array('file' => $this->getCurlFile($filePath))),
-            true
-        );
+        if($workers === 0)
+        {
+            $result = json_decode(
+                $this->httpRequest($result['upload_url'], array('file' => $this->getCurlFile($filePath))),
+                true
+            );
+        }
+        else
+        {
+            $upload = new XUpload(
+                $result['upload_url'],
+                $filePath,
+                intval(min(max($workers,1),8)),
+                $progressCallback,
+                array('socket' => $this->proxy, 'credentials' => $this->proxyCredentials)
+            );
+            $result = $upload->start();
+        }
+
         $this->timeout = $timeout;
 
         if (isset($result['error']))
         {
             throw new DailymotionApiException($result['error']['message'], $result['error']['code']);
         }
+        if (!empty($callbackUrl))
+        {
+            $this->httpRequest($callbackUrl.'?'.http_build_query($result), null);
+        }
         return $result['url'];
+    }
+
+    /**
+     * Example of progress callback which print the upload percentage using STDERR flow.
+     *
+     * @param int $sent bytes sent
+     * @param int $size bytes total
+     *
+     * @return true
+     */
+    public function progressCallback($sent, $size)
+    {
+        $percent = min(($sent * 100) / $size, 100);
+        fprintf(STDERR, "\r[%s%s] %.2f%% ", str_repeat('*', intval($percent)), str_repeat(' ', 100 - intval($percent)), $percent);
+        return true;
     }
 
     /**
@@ -839,9 +874,12 @@ class Dailymotion
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_URL            => $url,
             CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_POSTFIELDS     => $payload,
             CURLOPT_NOPROGRESS     => !($this->debug && is_array($payload) && array_key_exists('file', $payload)),
         );
+        if(!is_null($payload))
+        {
+            $options[CURLOPT_POSTFIELDS] = $payload;
+        }
         // There is no constructor to this class and I don't intend to add one just for this (PHP 4 legacy and all).
         if (is_null($this->followRedirects))
         {

@@ -169,7 +169,7 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         );
         $url = $this->api->uploadFile($testVideoFile);
         $this->assertInternalType('string', $url);
-        $this->assertContains('http://', $url);
+        $this->assertContains('https://', $url);
 
         $result = $this->api->post('/me/videos', array('url' => $url));
         $this->assertArrayHasKey('id', $result);
