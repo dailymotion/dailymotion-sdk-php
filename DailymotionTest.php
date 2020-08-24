@@ -178,4 +178,29 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         $result = $this->api->delete("/video/{$result['id']}");
         $this->assertInternalType('array', $result);
     }
+
+    public function testVideoXupload()
+    {
+        global $testUser,
+               $testPassword,
+               $testVideoFile;
+
+        $this->api->setGrantType(
+            Dailymotion::GRANT_TYPE_PASSWORD,
+            $this->apiKey,
+            $this->apiSecret,
+            array('read', 'write', 'delete', 'manage_videos'),
+            array('username' => $testUser, 'password' => $testPassword)
+        );
+        $url = $this->api->uploadFile($testVideoFile, null, $unused, null, 6, [$this->api, 'progressCallback']);
+        $this->assertInternalType('string', $url);
+        $this->assertContains('https://', $url);
+
+        $result = $this->api->post('/me/videos', array('url' => $url));
+        $this->assertArrayHasKey('id', $result);
+
+        sleep(2);
+        $result = $this->api->delete("/video/{$result['id']}");
+        $this->assertInternalType('array', $result);
+    }
 }
