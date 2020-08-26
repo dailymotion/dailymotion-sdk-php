@@ -853,7 +853,7 @@ class Dailymotion
      * @throws DailymotionTransportException If a network error occurs during the request.
      * @return string Response body
      */
-    protected function httpRequest($url, $payload, $headers = null, &$statusCode = null, &$responseHeaders = array(), $encodePayload = false)
+    protected function httpRequest($url, $payload = null, $headers = null, &$statusCode = null, &$responseHeaders = array(), $encodePayload = false)
     {
         $payload = (is_array($payload) && (true === $encodePayload))
             ? http_build_query($payload, null, '&')
@@ -1090,8 +1090,8 @@ class XUpload {
         $this->workers  = intval(max(1, min($workers, $this->size / (4<<20))));
         $this->progress = $progress;
         if (count($proxy) === 2) {
-            $this->proxySocket      = $proxy[array_key_first($proxy)];
-            $this->proxyCredentials = $proxy[array_key_last($proxy)];
+            $this->proxySocket      = array_shift($proxy);
+            $this->proxyCredentials = array_shift($proxy);
         }
         $this->csize    = $this->size / $this->workers;
         if (($value = intval($this->size / $this->workers / (4<<20))) > 0) {
@@ -1126,7 +1126,6 @@ class XUpload {
                 'size'    => 0,
                 'sent'    => 0,
             ];
-            curl_multi_add_handle($this->scheduler, $request);
         }
     }
     public function start()
@@ -1140,7 +1139,7 @@ class XUpload {
             ];
         }
         for ($index = 0; $index < $this->workers; $index++) {
-            $this->run($index);
+            $this->prepareHandle($index);
         }
         $response = [];
         $last     = microtime(true);
@@ -1198,7 +1197,7 @@ class XUpload {
                                 }
                                 if (($range[1] - $client['start'] + 1) % $this->csize == 0) {
                                     $this->clients[$index]['offset'] = $range[1] + 1;
-                                    $this->run($index);
+                                    $this->prepareHandle($index);
                                     $response = [];
                                     break;
                                 }
@@ -1210,8 +1209,8 @@ class XUpload {
                         if (@$response['error'] == '') {
                             $response = [
                                 'error' => [
-                                    'code'    => 503,
-                                    'message' => 'server unavailable'
+                                    'code'    => curl_errno($request['handle']),
+                                    'message' => curl_error($request['handle'])
                                 ]
                             ];
                         }
@@ -1228,7 +1227,7 @@ class XUpload {
     }
 
     // internal functions
-    private function run($index) {
+    private function prepareHandle($index) {
         $client = $this->clients[$index];
         $size   = min($this->csize,  $client['end'] - $client['offset'] + 1);
         $this->clients[$index]['data'] = file_get_contents($this->path, false, null,  $client['offset'], $size);
