@@ -357,7 +357,9 @@ class Dailymotion
 
         if (isset($result['error']))
         {
-            throw new DailymotionApiException($result['error']['message'], $result['error']['code']);
+            $message = isset($result['error']['message']) ? $result['error']['message'] : $result['error'];
+            $code    = isset($result['error']['code'])    ? $result['error']['code']    : 0;
+            throw new DailymotionApiException($message, $code);
         }
         if (!empty($callbackUrl))
         {
