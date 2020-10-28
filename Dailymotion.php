@@ -13,7 +13,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.6.6';
+    const VERSION = '1.6.7';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -693,10 +693,7 @@ class Dailymotion
 
         if (!empty($cookieValue))
         {
-            parse_str(
-                trim((get_magic_quotes_gpc() ? stripslashes($cookieValue) : $cookieValue), '"'),
-                $session
-            );
+            parse_str(trim($cookieValue, '"'), $session);
         }
         return $session;
     }
