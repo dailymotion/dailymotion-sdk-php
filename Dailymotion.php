@@ -13,7 +13,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.6.7';
+    const VERSION = '1.6.8';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -316,12 +316,13 @@ class Dailymotion
      * @param int      $workers          Number of concurrent connections used to upload file (can be up to 8)
      *                                   Setting to 0 will use multipart/form-data upload method
      * @param callable $progressCallback Method called to track the upload progress. See progressCallback method as example
+     * @param int      $timeout          Set timeout for the upload. If the variable is not given, timeout will be disabled
      *
      * @return string URL of the file on Dailymotion's servers
      *
      * @throws DailymotionApiException if the API itself returned an error
      */
-    public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null, $callbackUrl = null, $workers = 0, $progressCallback = null)
+    public function uploadFile($filePath, $forceHostname = null, &$progressUrl = null, $callbackUrl = null, $workers = 0, $progressCallback = null, $timeout = 0)
     {
         $result = $this->get('/file/upload');
         $progressUrl = $result['progress_url'];
@@ -329,9 +330,9 @@ class Dailymotion
         {
             $result['upload_url'] = preg_replace('#://[^/]+/#', "://{$forceHostname}/", $result['upload_url']);
         }
-        // Temporarily remove the timeout for uploads
-        $timeout = $this->timeout;
-        $this->timeout = null;
+
+        $backUpTimeout = $this->timeout;
+        $this->timeout = $timeout;
 
         // Upload the file to Dailymotion's servers
         if($workers === 0)
@@ -353,7 +354,7 @@ class Dailymotion
             $result = $upload->start();
         }
 
-        $this->timeout = $timeout;
+        $this->timeout = $backUpTimeout;
 
         if (isset($result['error']))
         {
