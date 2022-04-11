@@ -13,7 +13,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.6.7';
+    const VERSION = '1.7.0';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -389,7 +389,7 @@ class Dailymotion
      */
     public function get($path, $args = array())
     {
-        return $this->call("GET {$path}", $args);
+        return $this->call("GET {$path}", $args, false);
     }
 
     /**
@@ -413,8 +413,9 @@ class Dailymotion
     /**
      * Call a remote endpoint on the API.
      *
-     * @param string $resource API endpoint to call.
-     * @param array  $args     Associative array of arguments.
+     * @param string $resource      API endpoint to call.
+     * @param array  $args          Associative array of arguments.
+     * @param bool   $forcePost     Force use of HTTP POST to perform the request.
      *
      * @throws DailymotionApiException          If the API itself returned an error.
      * @throws DailymotionAuthException         If we can't authenticate the request.
@@ -423,19 +424,35 @@ class Dailymotion
      *
      * @return mixed Endpoint call response
      */
-    public function call($resource, $args = array())
+    public function call($resource, $args = [], $forcePost = true)
     {
         $headers = array('Content-Type: application/json');
-        $payload = json_encode(array(
-            'call' => $resource,
-            'args' => $args,
-        ));
+        $url = $this->apiEndpointUrl;
         $statusCode = null;
+
+        if ($isGetRequest = !$forcePost && strpos($resource, "GET ") === 0)
+        {
+            $payload = null;
+            $url .= substr($resource, 4);
+
+            if (!empty($args))
+            {
+                $url .= "?". http_build_query($args);
+            }
+        }
+        else
+        {
+            $payload = json_encode([
+                'call' => $resource,
+                'args' => $args,
+            ]);
+        }
+
         try
         {
             $result = json_decode(
                 $this->oauthRequest(
-                    $this->apiEndpointUrl,
+                    $url,
                     $payload,
                     $this->getAccessToken(),
                     $headers,
@@ -451,7 +468,7 @@ class Dailymotion
                 // Retry by forcing the refresh of the access token
                 $result = json_decode(
                     $this->oauthRequest(
-                        $this->apiEndpointUrl,
+                        $url,
                         $payload,
                         $this->getAccessToken(true),
                         $headers,
@@ -465,15 +482,17 @@ class Dailymotion
                 throw $e;
             }
         }
+
         if (empty($result))
         {
             throw new DailymotionApiException('Invalid API server response');
         }
-        elseif ($statusCode !== 200)
+
+        if (!$isGetRequest && $statusCode !== 200)
         {
             throw new DailymotionApiException("Unknown error: {$statusCode}", $statusCode);
         }
-        elseif (is_array($result) && isset($result['error']))
+        if (is_array($result) && isset($result['error']))
         {
             $message = isset($result['error']['message']) ? $result['error']['message'] : null;
             $code    = isset($result['error']['code'])    ? $result['error']['code']    : null;
@@ -487,11 +506,11 @@ class Dailymotion
                 throw new DailymotionApiException($message, $code);
             }
         }
-        elseif (!isset($result['result']))
+        if (!$isGetRequest && !isset($result['result']))
         {
             throw new DailymotionApiException("Invalid API server response: no `result` key found.");
         }
-        return $result['result'];
+        return $isGetRequest ? $result : $result['result'];
     }
 
     /**
@@ -823,14 +842,17 @@ class Dailymotion
                 $message = null;
                 $match   = array();
 
-                if (preg_match('/error="(.*?)"(?:, error_description="(.*?)")?/', $responseHeaders['www-authenticate'], $match))
+                if (array_key_exists('www-authenticate', $responseHeaders))
                 {
-                    $error   = $match[1];
-                    $message = $match[2];
+                    if (preg_match('/error="(.*?)"(?:, error_description="(.*?)")?/', $responseHeaders['www-authenticate'], $match))
+                    {
+                        $error   = $match[1];
+                        $message = $match[2];
+                    }
+                    $e = new DailymotionAuthException($message);
+                    $e->error = $error;
+                    throw $e;
                 }
-                $e = new DailymotionAuthException($message);
-                $e->error = $error;
-                throw $e;
         }
         return $result;
     }
