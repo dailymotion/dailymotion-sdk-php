@@ -429,8 +429,9 @@ class Dailymotion
         $headers = array('Content-Type: application/json');
         $url = $this->apiEndpointUrl;
         $statusCode = null;
+        $isGetRequest = !$forcePost && strpos($resource, "GET ") === 0;
 
-        if ($isGetRequest = !$forcePost && strpos($resource, "GET ") === 0)
+        if ($isGetRequest)
         {
             $payload = null;
             $url .= substr($resource, 4);
@@ -506,11 +507,16 @@ class Dailymotion
                 throw new DailymotionApiException($message, $code);
             }
         }
-        if (!$isGetRequest && !isset($result['result']))
+        if (!isset($result['result']))
         {
+            if ($isGetRequest)
+            {
+                return $result;
+            }
+
             throw new DailymotionApiException("Invalid API server response: no `result` key found.");
         }
-        return $isGetRequest ? $result : $result['result'];
+        return $result['result'];
     }
 
     /**
