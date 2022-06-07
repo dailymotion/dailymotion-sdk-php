@@ -101,6 +101,26 @@ class DailymotionTest extends PHPUnit_Framework_TestCase
         $result = $this->api->get('/me');
     }
 
+    /**
+     * @expectedException DailymotionApiException
+     * expectedExceptionCode 403
+     * @expectedExceptionMessage Insufficient rights for route GET /user/<id>/players
+     */
+    public function testInsufficientScopesGet()
+    {
+        global $testUser,
+               $testPassword;
+
+        $this->api->setGrantType(
+            Dailymotion::GRANT_TYPE_PASSWORD,
+            $this->apiKey, $this->apiSecret,
+            ["manage_videos"],
+            array('username' => $testUser, 'password' => $testPassword)
+        );
+        //requires manage_players scope
+        $this->api->get('/me/players');
+    }
+
     public function testGrantTypeClientCredentials()
     {
         $this->api->setGrantType(
