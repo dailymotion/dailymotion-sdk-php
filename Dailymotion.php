@@ -13,7 +13,7 @@ class Dailymotion
      * Current version number of this SDK.
      * @var string Version number
      */
-    const VERSION = '1.7.0';
+    const VERSION = '1.7.1';
 
     /**
      * An authorization is requested to the end-user by redirecting it to an authorization page hosted
@@ -438,6 +438,11 @@ class Dailymotion
 
             if (!empty($args))
             {
+                foreach ($args as $key => $value) {
+                    if (is_array($value)) {
+                        $args[$key] = implode(",", $value);
+                    }
+                }
                 $url .= "?". http_build_query($args);
             }
         }
