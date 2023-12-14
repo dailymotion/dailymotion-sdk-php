@@ -1,12 +1,14 @@
 Dailymotion PHP SDK
 ===================
 
-This repository contains the official open source PHP SDK that facilitates access to the [**Dailymotion Graph API**](https://developer.dailymotion.com/api/) from your PHP application. For more information about developing with Dailymotion's services, head to the [Developer Area](https://developer.dailymotion.com).
+**PHP SDK Documentation:** [https://developers.dailymotion.com/sdk/platform-sdk/php/](https://developers.dailymotion.com/sdk/platform-sdk/php/)
+
+This repository contains the official open source PHP SDK that facilitates access to the [**Dailymotion Platform API**](https://developer.dailymotion.com/api/platform-api/) from your PHP application. For more information about developing with Dailymotion's services, head to the [Developer Portal](https://developer.dailymotion.com).
 
 Usage
 -----
 
-**The PHP SDK implements the Dailymotion [Advanced API](https://developer.dailymotion.com/api/).** For a list of all available methods, see the complete [API reference](https://developer.dailymotion.com/api/#api-reference). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
+**The PHP SDK implements the Dailymotion [Platform API](https://developer.dailymotion.com/api/platform-api/).** For a list of all available objects, fields and filters, see the complete [API reference](https://developer.dailymotion.com/api/platform-api/reference/). To call a method using the PHP SDK, use the `get`, `post` or `delete` methods as follow:
 
 ```php
 $api = new Dailymotion();
@@ -16,11 +18,11 @@ $result = $api->get(
 );
 ```
 
-The `$result` variable contains the result of the method (as described in the [Graph API overview](https://developer.dailymotion.com/api/#response-types)) as an [`array`](https://developer.dailymotion.com/api/#type-array).
+The `$result` variable contains the result of the method (as described in the [Platform API basics](https://developer.dailymotion.com/api/platform-api/understand-api-responses/)) as an [`array`](https://developer.dailymotion.com/api/platform-api/data-types/#array).
 
 #### Authentication
 
-The Dailymotion API requires OAuth 2.0 authentication in order to access protected resources.
+The Platform API requires OAuth 2.0 authentication in order to access protected resources.
 
 Contrary to most OAuth SDKs, the Dailymotion PHP SDK implements **lazy authentication**, which means that no authentication request is sent as long as no data is requested from the API. At which point, two requests are sent back-to-back during the first request for information, one to authenticate and one to fetch the data. Keep this in mind while working through the rest of the documentation.
 
@@ -39,7 +41,7 @@ Please note that **the Dailymotion PHP SDK also takes care of abstracting the en
 
 **Note:** One of the problems with OAuth 2.0 is that the specification doesn't offer any mechanism to upgrade the scope of an existing session. To add new scopes to an already existing session, you first need to call the `Dailymotion::logout()` method and start a new session with your new list of scopes.
 
-If you really wish to manually retrieve an access token without waiting for the SDK to take care of it when sending the first query, you can use the  `Dailymotion::getAccessToken()` method. It will try to authenticate and return you the corresponding access token or an exception. Please note that this isn't the recommended way to proceed. See the [Overloading the SDK](#overloading-the-sdk) section for more information about handling access tokens.
+If you really wish to manually retrieve an access token without waiting for the SDK to take care of it when sending the first query, you can use the  `Dailymotion::getAccessToken()` method. It will try to authenticate and return you the corresponding access token or an exception. Please note that this isn't the recommended way to proceed. See the [Overloading the SDK](#overloading) section for more information about handling access tokens.
 
 This library implements three OAuth 2.0 granting methods for different kind of usages.
 
