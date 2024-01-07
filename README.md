@@ -67,7 +67,7 @@ try
     //   and `storeSession()` methods that are made to be overridden in an extension
     //   of the class if you want a different storage than provided by default.
     $result = $api->get(
-        '/me/videos',
+        '/user/<CHANNEL_ID>/videos',
         array('fields' => array('id', 'title', 'owner'))
     );
 }
@@ -119,7 +119,7 @@ else
     //   and `storeSession()` methods that are made to be overridden in an extension
     //   of the class if you want a different storage than provided by default.
     $result = $api->get(
-        '/me/videos',
+        '/user/<CHANNEL_ID>/videos',
         array('fields' => array('id', 'title', 'owner'))
     );
 }
@@ -154,7 +154,7 @@ There is no authenticated user in this scenario, thus you won't be able to acces
 
 #### Upload File
 
-Some methods like `POST /me/videos` requires a URL to a file.
+Some methods like `POST /user/<CHANNEL_ID>/videos` requires a URL to a file.
 To create those URLs, Dailymotion offers a temporary upload service through the `Dailymotion::uploadFile()` method which can be used like this:
 
 ```php
@@ -171,7 +171,7 @@ For instance to create a video:
 // More fields may be mandatory in order to create a video.
 // Please refer to the complete API reference for a list of all the required data.
 $result = $api->post(
-    '/me/videos',
+    '/user/<CHANNEL_ID>/videos',
     array('url' => $url, 'title' => $videoTitle)
 );
 ```
