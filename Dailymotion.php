@@ -270,7 +270,7 @@ class Dailymotion
                 'scope'         => implode(chr(32), $this->grantInfo['scope']),
                 'display'       => $display,
             ),
-            null,
+            '',
             '&'
         );
     }
@@ -750,7 +750,7 @@ class Dailymotion
         $cookieName = sprintf(self::SESSION_COOKIE, $this->grantInfo['key']);
         if (!empty($session))
         {
-            $value   = '"' . http_build_query($session, null, '&') . '"';
+            $value   = '"' . http_build_query($session, '', '&') . '"';
             $expires = time() + $this->cookieLifeTime;
         }
         else
@@ -888,7 +888,7 @@ class Dailymotion
     protected function httpRequest($url, $payload = null, $headers = null, &$statusCode = null, &$responseHeaders = array(), $encodePayload = false)
     {
         $payload = (is_array($payload) && (true === $encodePayload))
-            ? http_build_query($payload, null, '&')
+            ? http_build_query($payload, '', '&')
             : $payload;
 
         // Force removal of the Expect: 100-continue header automatically added by cURL
@@ -1008,7 +1008,7 @@ class Dailymotion
             }
             if (count($parameters) > 0)
             {
-                $query = '?' . http_build_query($parameters, null, '&');
+                $query = '?' . http_build_query($parameters, '', '&');
             }
         }
         // Use port if non default
