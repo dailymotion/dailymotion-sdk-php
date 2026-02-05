@@ -7,6 +7,9 @@
  * @author Nicolas Grevet <nicolas.grevet@dailymotion.com>
  * @author Samir Amzani <samir.amzani@dailymotion.com>
  */
+
+// Modificato da zidduz per compatibilità con PHP 8.3
+ 
 class Dailymotion
 {
     /**
